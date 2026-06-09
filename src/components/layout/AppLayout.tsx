@@ -12,14 +12,13 @@ import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { useSound } from '@/hooks/useSound';
 import { KeyboardHelp } from '@/components/ui/KeyboardHelp';
 import { LevelUpBanner } from '@/components/ui/GameEffects';
-import { cn } from '@/lib/utils';
 
 const NAV_ITEMS = [
-  { href: '/library',    icon: Library,    label: 'Library',    emoji: '📚' },
-  { href: '/vocabulary', icon: BookMarked, label: 'Vocabulary', emoji: '🔤' },
-  { href: '/flashcards', icon: CreditCard, label: 'Flashcards', emoji: '🃏' },
-  { href: '/practice',   icon: PenTool,    label: 'Practice',   emoji: '🧠' },
-  { href: '/analytics',  icon: BarChart2,  label: 'Analytics',  emoji: '📊' },
+  { href: '/library',    label: 'Library',    emoji: '📚' },
+  { href: '/vocabulary', label: 'Vocabulary', emoji: '🔤' },
+  { href: '/flashcards', label: 'Flashcards', emoji: '🃏' },
+  { href: '/practice',   label: 'Practice',   emoji: '🧠' },
+  { href: '/analytics',  label: 'Analytics',  emoji: '📊' },
 ];
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
@@ -52,157 +51,172 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   useKeyboardShortcuts({ '?': () => setHelpOpen(h => !h) });
 
+  const sidebarBg = '#1e1b4b';
+  const sidebarItemBg = '#2d2a5e';
+  const sidebarText = '#c4c2e8';
+  const activeBg = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: 'var(--bg-primary)' }}>
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: darkMode ? '#0f0e1a' : '#f0f4ff' }}>
 
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div
-          className="fixed inset-0 z-20 bg-black/60 lg:hidden backdrop-blur-sm"
           onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed', inset: 0, zIndex: 30,
+            background: 'rgba(0,0,0,0.6)',
+            backdropFilter: 'blur(4px)',
+          }}
         />
       )}
 
       {/* ── Sidebar ── */}
-      <aside
-        className={cn(
-          'fixed lg:sticky lg:top-0 z-20 flex flex-col h-screen w-64 transition-transform duration-300 flex-shrink-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
-        )}
-        style={{ background: 'var(--bg-sidebar)' }}
+      <aside style={{
+        position: 'fixed',
+        top: 0, left: 0, bottom: 0,
+        width: 240,
+        background: sidebarBg,
+        display: 'flex',
+        flexDirection: 'column',
+        zIndex: 40,
+        transform: sidebarOpen ? 'translateX(0)' : 'translateX(-100%)',
+        transition: 'transform 0.3s ease',
+        flexShrink: 0,
+      }}
+      className="lg:translate-x-0 lg:relative lg:z-auto"
       >
         {/* Logo */}
-        <div className="flex items-center justify-between px-5 py-5">
+        <div style={{ padding: '20px 16px 16px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <Link
             href="/library"
-            className="flex items-center gap-3"
             onClick={() => { setSidebarOpen(false); play('click'); }}
+            style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}
           >
-            <div
-              className="w-10 h-10 rounded-2xl flex items-center justify-center shadow-lg"
-              style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}
-            >
-              <BookOpen size={20} className="text-white" />
+            <div style={{
+              width: 40, height: 40, borderRadius: 12,
+              background: 'linear-gradient(135deg, #6366f1, #8b5cf6)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              flexShrink: 0,
+            }}>
+              <BookOpen size={20} color="white" />
             </div>
             <div>
-              <div className="text-white font-black text-base leading-none">SayfaSayfa</div>
-              <div className="text-xs mt-0.5" style={{ color: 'var(--text-sidebar)' }}>Turkish Reader</div>
+              <div style={{ color: 'white', fontWeight: 900, fontSize: 15, lineHeight: 1 }}>SayfaSayfa</div>
+              <div style={{ color: sidebarText, fontSize: 11, marginTop: 3 }}>Turkish Reader</div>
             </div>
           </Link>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="lg:hidden text-white/60 hover:text-white p-1"
+            className="lg:hidden"
+            style={{ color: 'white', background: 'none', border: 'none', cursor: 'pointer', padding: 4 }}
           >
             <X size={18} />
           </button>
         </div>
 
-        {/* XP / Level bar */}
-        <div className="mx-4 mb-4 p-3 rounded-2xl" style={{ background: 'var(--bg-sidebar-item)' }}>
-          <div className="flex items-center justify-between mb-2">
-            <div className="flex items-center gap-1.5">
-              <Zap size={14} className="text-yellow-400" />
-              <span className="text-xs font-bold text-yellow-400">Level {stats.level}</span>
+        {/* XP Bar */}
+        <div style={{ margin: '0 12px 12px', padding: '12px', borderRadius: 16, background: sidebarItemBg }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Zap size={13} color="#fbbf24" />
+              <span style={{ color: '#fbbf24', fontSize: 12, fontWeight: 800 }}>Level {stats.level}</span>
             </div>
-            <span className="text-xs" style={{ color: 'var(--text-sidebar)' }}>
-              {stats.xp % 100}/100 XP
+            <span style={{ color: sidebarText, fontSize: 11 }}>{stats.xp % 100}/100 XP</span>
+          </div>
+          <div style={{ height: 7, background: 'rgba(255,255,255,0.1)', borderRadius: 4, overflow: 'hidden' }}>
+            <div style={{
+              height: '100%', width: `${xpPercent}%`,
+              background: 'linear-gradient(90deg, #f59e0b, #f97316)',
+              borderRadius: 4,
+              transition: 'width 0.6s ease',
+              boxShadow: '0 0 8px #f59e0b88',
+            }} />
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 8 }}>
+            <span style={{ color: '#f87171', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Flame size={11} /> {stats.currentStreak} streak
             </span>
-          </div>
-          <div className="xp-bar">
-            <div className="xp-bar-fill" style={{ width: `${xpPercent}%` }} />
-          </div>
-          <div className="flex items-center justify-between mt-2">
-            <div className="flex items-center gap-1">
-              <Flame size={12} className="text-red-400" />
-              <span className="text-xs font-bold text-red-400">{stats.currentStreak} streak</span>
-            </div>
-            <div className="flex items-center gap-1">
-              <Trophy size={12} className="text-purple-400" />
-              <span className="text-xs font-bold text-purple-400">{stats.wordsLearned} learned</span>
-            </div>
+            <span style={{ color: '#c084fc', fontSize: 11, fontWeight: 700, display: 'flex', alignItems: 'center', gap: 4 }}>
+              <Trophy size={11} /> {stats.wordsLearned} learned
+            </span>
           </div>
         </div>
 
-        {/* Nav items */}
-        <nav className="flex-1 px-3 overflow-y-auto">
-          <p className="px-3 mb-2 text-xs font-bold uppercase tracking-widest" style={{ color: 'var(--text-sidebar)', opacity: 0.5 }}>
+        {/* Nav */}
+        <nav style={{ flex: 1, padding: '0 8px', overflowY: 'auto' }}>
+          <p style={{ color: sidebarText, fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', padding: '0 10px', marginBottom: 6, opacity: 0.5 }}>
             Menu
           </p>
-          <ul className="space-y-1">
-            {NAV_ITEMS.map(({ href, icon: Icon, label, emoji }) => {
-              const isActive = pathname.startsWith(href);
-              return (
-                <li key={href}>
-                  <Link
-                    href={href}
-                    onClick={() => { setSidebarOpen(false); play('click'); }}
-                    className={cn(
-                      'flex items-center gap-3 px-3 py-3 rounded-2xl text-sm font-bold transition-all duration-150',
-                      isActive
-                        ? 'text-white shadow-lg'
-                        : 'hover:text-white'
-                    )}
-                    style={isActive
-                      ? { background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }
-                      : { color: 'var(--text-sidebar)', background: 'transparent' }
-                    }
-                    onMouseEnter={e => {
-                      if (!isActive) (e.currentTarget as HTMLElement).style.background = 'var(--bg-sidebar-item)';
-                    }}
-                    onMouseLeave={e => {
-                      if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent';
-                    }}
-                  >
-                    <span className="text-lg">{emoji}</span>
-                    <span>{label}</span>
-                    {isActive && (
-                      <div className="ml-auto w-2 h-2 rounded-full bg-white opacity-80" />
-                    )}
-                  </Link>
-                </li>
-              );
-            })}
-          </ul>
+          {NAV_ITEMS.map(({ href, label, emoji }) => {
+            const isActive = pathname.startsWith(href);
+            return (
+              <Link
+                key={href}
+                href={href}
+                onClick={() => { setSidebarOpen(false); play('click'); }}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 10,
+                  padding: '11px 12px', borderRadius: 14, marginBottom: 3,
+                  textDecoration: 'none', fontWeight: 700, fontSize: 14,
+                  background: isActive ? activeBg : 'transparent',
+                  color: isActive ? 'white' : sidebarText,
+                  transition: 'all 0.15s ease',
+                }}
+                onMouseEnter={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = sidebarItemBg; }}
+                onMouseLeave={e => { if (!isActive) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+              >
+                <span style={{ fontSize: 18 }}>{emoji}</span>
+                <span>{label}</span>
+                {isActive && <div style={{ marginLeft: 'auto', width: 8, height: 8, borderRadius: '50%', background: 'white', opacity: 0.8 }} />}
+              </Link>
+            );
+          })}
 
-          {/* Highlight color legend */}
-          <div className="mt-5 px-3">
-            <p className="text-xs font-bold uppercase tracking-widest mb-3" style={{ color: 'var(--text-sidebar)', opacity: 0.5 }}>
+          {/* Highlight legend */}
+          <div style={{ padding: '16px 10px 0' }}>
+            <p style={{ color: sidebarText, fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10, opacity: 0.5 }}>
               Highlights
             </p>
-            <div className="space-y-2">
-              {[
-                { color: '#f59e0b', label: 'Known but forgot' },
-                { color: '#ef4444', label: 'Unknown' },
-                { color: '#10b981', label: 'Personal note' },
-              ].map(c => (
-                <div key={c.color} className="flex items-center gap-2">
-                  <div className="w-3 h-3 rounded-full flex-shrink-0 shadow-sm" style={{ background: c.color, boxShadow: `0 0 6px ${c.color}88` }} />
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-sidebar)' }}>{c.label}</span>
-                </div>
-              ))}
-            </div>
+            {[
+              { color: '#f59e0b', label: 'Known but forgot' },
+              { color: '#ef4444', label: 'Unknown' },
+              { color: '#10b981', label: 'Personal note' },
+            ].map(c => (
+              <div key={c.color} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.color, boxShadow: `0 0 6px ${c.color}88`, flexShrink: 0 }} />
+                <span style={{ color: sidebarText, fontSize: 12 }}>{c.label}</span>
+              </div>
+            ))}
           </div>
         </nav>
 
-        {/* Bottom actions */}
-        <div className="px-3 py-4 space-y-1">
+        {/* Bottom */}
+        <div style={{ padding: '8px 8px 16px' }}>
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold transition-all"
-            style={{ color: 'var(--text-sidebar)' }}
-            onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-sidebar-item)')}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 14, background: 'none',
+              border: 'none', cursor: 'pointer', color: sidebarText,
+              fontSize: 13, fontWeight: 700, marginBottom: 4,
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = sidebarItemBg)}
             onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
           >
-            {darkMode ? <Sun size={16} className="text-yellow-400" /> : <Moon size={16} className="text-blue-400" />}
+            {darkMode ? <Sun size={16} color="#fbbf24" /> : <Moon size={16} color="#93c5fd" />}
             <span>{darkMode ? 'Light Mode' : 'Dark Mode'}</span>
           </button>
-
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-2xl text-sm font-bold transition-all"
-            style={{ color: 'var(--text-sidebar)' }}
-            onMouseEnter={e => { (e.currentTarget.style.background = 'rgba(239,68,68,0.15)'); (e.currentTarget.style.color = '#ef4444'); }}
-            onMouseLeave={e => { (e.currentTarget.style.background = 'transparent'); (e.currentTarget.style.color = 'var(--text-sidebar)'); }}
+            style={{
+              width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+              padding: '10px 12px', borderRadius: 14, background: 'none',
+              border: 'none', cursor: 'pointer', color: sidebarText,
+              fontSize: 13, fontWeight: 700,
+            }}
+            onMouseEnter={e => { (e.currentTarget.style.background = 'rgba(239,68,68,0.15)'); (e.currentTarget.style.color = '#f87171'); }}
+            onMouseLeave={e => { (e.currentTarget.style.background = 'transparent'); (e.currentTarget.style.color = sidebarText); }}
           >
             <LogOut size={16} />
             <span>Sign Out</span>
@@ -210,29 +224,44 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* ── Main ── */}
-      <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+      {/* ── Main content ── */}
+      <div style={{
+        flex: 1,
+        display: 'flex',
+        flexDirection: 'column',
+        minWidth: 0,
+        overflow: 'hidden',
+        marginLeft: 0,
+      }}
+      className="lg:ml-[240px]"
+      >
         {/* Mobile top bar */}
         <div
-          className="lg:hidden flex items-center gap-3 px-4 py-3 border-b flex-shrink-0"
-          style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)' }}
+          className="lg:hidden"
+          style={{
+            display: 'flex', alignItems: 'center', gap: 12,
+            padding: '12px 16px',
+            background: darkMode ? '#1e1c35' : '#ffffff',
+            borderBottom: `1px solid ${darkMode ? '#2e2b50' : '#dde1f5'}`,
+            flexShrink: 0,
+          }}
         >
           <button
             onClick={() => { setSidebarOpen(true); play('click'); }}
-            style={{ color: 'var(--text-secondary)' }}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: darkMode ? '#a8a5d0' : '#4c4980', padding: 4 }}
           >
             <Menu size={22} />
           </button>
-          <span className="text-base font-black" style={{ color: 'var(--text-primary)' }}>
+          <span style={{ fontWeight: 900, fontSize: 16, color: darkMode ? '#e8e6ff' : '#1e1b4b' }}>
             SayfaSayfa 📚
           </span>
-          <div className="ml-auto flex items-center gap-2">
-            <Zap size={14} className="text-yellow-500" />
-            <span className="text-sm font-bold text-yellow-500">Lv.{stats.level}</span>
+          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+            <Zap size={14} color="#f59e0b" />
+            <span style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>Lv.{stats.level}</span>
           </div>
         </div>
 
-        <main className="flex-1 overflow-y-auto">
+        <main style={{ flex: 1, overflowY: 'auto' }}>
           {children}
         </main>
       </div>
