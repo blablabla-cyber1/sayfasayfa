@@ -1,0 +1,125 @@
+@import url('https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&family=Crimson+Pro:ital,wght@0,300;0,400;0,500;1,300;1,400&family=JetBrains+Mono:wght@400;500&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --color-forgot: #c7893c;
+  --color-forgot-light: #c7893c22;
+  --color-unknown: #d55e27;
+  --color-unknown-light: #d55e2722;
+  --color-note: #327874;
+  --color-note-light: #32787422;
+  --bg-primary: #faf8f5;
+  --bg-secondary: #f2ede6;
+  --bg-card: #ffffff;
+  --bg-sidebar: #f7f4ef;
+  --text-primary: #1a1714;
+  --text-secondary: #5c5650;
+  --text-muted: #9c9590;
+  --border-color: #e8e2d9;
+  --border-focus: #327874;
+  --accent-primary: #327874;
+  --accent-warm: #c7893c;
+  --accent-hot: #d55e27;
+  --reader-bg: #fdfbf8;
+  --reader-text: #1a1714;
+  --reader-line-height: 1.85;
+  --reader-font-size: 18px;
+}
+
+[data-theme="dark"] {
+  --bg-primary: #12110f;
+  --bg-secondary: #1c1a17;
+  --bg-card: #1e1c19;
+  --bg-sidebar: #171512;
+  --text-primary: #f0ebe4;
+  --text-secondary: #b0aa9f;
+  --text-muted: #6e6860;
+  --border-color: #2e2b26;
+  --reader-bg: #141210;
+  --reader-text: #e8e2d9;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  font-family: 'Crimson Pro', Georgia, serif;
+  transition: background-color 0.3s, color 0.3s;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.highlight-forgot {
+  background-color: var(--color-forgot-light);
+  border-bottom: 2px solid var(--color-forgot);
+  cursor: pointer; border-radius: 2px; padding: 0 2px;
+  transition: background-color 0.15s;
+}
+.highlight-forgot:hover { background-color: #c7893c44; }
+
+.highlight-unknown {
+  background-color: var(--color-unknown-light);
+  border-bottom: 2px solid var(--color-unknown);
+  cursor: pointer; border-radius: 2px; padding: 0 2px;
+  transition: background-color 0.15s;
+}
+.highlight-unknown:hover { background-color: #d55e2744; }
+
+.highlight-note {
+  background-color: var(--color-note-light);
+  border-bottom: 2px solid var(--color-note);
+  cursor: pointer; border-radius: 2px; padding: 0 2px;
+  transition: background-color 0.15s;
+}
+.highlight-note:hover { background-color: #32787444; }
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+
+.reader-content {
+  font-family: 'Crimson Pro', Georgia, serif;
+  font-size: var(--reader-font-size);
+  line-height: var(--reader-line-height);
+  color: var(--reader-text);
+}
+.reader-content p { margin-bottom: 1.5em; }
+
+.story-card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.story-card:hover { transform: translateY(-3px); box-shadow: 0 12px 40px rgba(0,0,0,0.12); }
+
+.flashcard-container { perspective: 1000px; }
+.flashcard { position: relative; width: 100%; height: 100%; transform-style: preserve-3d; transition: transform 0.6s cubic-bezier(0.4, 0, 0.2, 1); }
+.flashcard.flipped { transform: rotateY(180deg); }
+.flashcard-front, .flashcard-back { position: absolute; width: 100%; height: 100%; backface-visibility: hidden; -webkit-backface-visibility: hidden; }
+.flashcard-back { transform: rotateY(180deg); }
+
+@keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+@keyframes shimmer { 0% { background-position: -200% 0; } 100% { background-position: 200% 0; } }
+
+.animate-fade-in { animation: fadeIn 0.4s ease forwards; }
+.animate-slide-in { animation: slideIn 0.3s ease forwards; }
+
+.skeleton {
+  background: linear-gradient(90deg, var(--bg-secondary) 25%, var(--border-color) 50%, var(--bg-secondary) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+  border-radius: 4px;
+}
+
+.selection-menu {
+  position: fixed; z-index: 1000;
+  background: var(--bg-card); border: 1px solid var(--border-color);
+  border-radius: 10px; box-shadow: 0 8px 32px rgba(0,0,0,0.15);
+  padding: 6px; display: flex; gap: 4px;
+  animation: fadeIn 0.15s ease;
+}
