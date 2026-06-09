@@ -32,12 +32,25 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
+      style={{
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 9999,
+        backgroundColor: 'rgba(0,0,0,0.6)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '16px',
+      }}
     >
       <div
+        style={{ width: '100%', maxHeight: '90vh', display: 'flex', flexDirection: 'column' }}
         className={cn(
-          'bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl w-full animate-fade-in flex flex-col max-h-[90vh]',
+          'bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl animate-fade-in',
           {
             'max-w-sm':  size === 'sm',
             'max-w-md':  size === 'md',
@@ -46,7 +59,6 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
           }
         )}
       >
-        {/* Header */}
         {title && (
           <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] flex-shrink-0">
             <h2
@@ -63,9 +75,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
             </button>
           </div>
         )}
-
-        {/* Scrollable body */}
-        <div className="overflow-y-auto flex-1">
+        <div style={{ overflowY: 'auto', flex: 1 }}>
           {children}
         </div>
       </div>
