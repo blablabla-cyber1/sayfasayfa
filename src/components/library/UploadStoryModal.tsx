@@ -139,8 +139,8 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
       title={editStory ? 'Edit Story' : 'Add Story'}
       size="lg"
     >
-      <form onSubmit={handleSubmit}>
-        <div className="p-6 space-y-5">
+     <form onSubmit={handleSubmit}>
+        <div className="p-6 space-y-5 overflow-y-auto">
 
           {/* Title + Author */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
