@@ -32,34 +32,40 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-10 bg-black/50 backdrop-blur-sm overflow-y-auto"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
       <div
         className={cn(
-          'bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl w-full animate-fade-in max-h-[90vh] flex flex-col',
+          'bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl w-full animate-fade-in my-auto',
           {
-            'max-w-sm': size === 'sm',
-            'max-w-md': size === 'md',
+            'max-w-sm':  size === 'sm',
+            'max-w-md':  size === 'md',
             'max-w-2xl': size === 'lg',
             'max-w-4xl': size === 'xl',
           }
         )}
       >
+        {/* Header */}
         {title && (
-          <div className="flex items-center justify-between p-5 border-b border-[var(--border-color)] flex-shrink-0">
-            <h2 className="text-lg font-semibold text-[var(--text-primary)]" style={{ fontFamily: 'Playfair Display, serif' }}>
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] sticky top-0 bg-[var(--bg-card)] rounded-t-2xl z-10">
+            <h2
+              className="text-lg font-semibold text-[var(--text-primary)]"
+              style={{ fontFamily: 'Playfair Display, serif' }}
+            >
               {title}
             </h2>
             <button
               onClick={onClose}
-              className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors"
+              className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1.5 rounded-lg hover:bg-[var(--bg-secondary)] transition-colors"
             >
               <X size={18} />
             </button>
           </div>
         )}
-        <div className="overflow-y-auto flex-1">{children}</div>
+
+        {/* Body — just renders children directly, no overflow clip */}
+        <div>{children}</div>
       </div>
     </div>
   );
