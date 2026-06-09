@@ -32,12 +32,12 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
   return (
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm overflow-y-auto"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm"
       onClick={(e) => { if (e.target === overlayRef.current) onClose(); }}
     >
       <div
         className={cn(
-          'bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl w-full animate-fade-in my-auto',
+          'bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl w-full animate-fade-in flex flex-col max-h-[90vh]',
           {
             'max-w-sm':  size === 'sm',
             'max-w-md':  size === 'md',
@@ -48,7 +48,7 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
       >
         {/* Header */}
         {title && (
-          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] sticky top-0 bg-[var(--bg-card)] rounded-t-2xl z-10">
+          <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)] flex-shrink-0">
             <h2
               className="text-lg font-semibold text-[var(--text-primary)]"
               style={{ fontFamily: 'Playfair Display, serif' }}
@@ -64,8 +64,10 @@ export function Modal({ isOpen, onClose, title, children, size = 'md' }: ModalPr
           </div>
         )}
 
-        {/* Body — just renders children directly, no overflow clip */}
-        <div>{children}</div>
+        {/* Scrollable body */}
+        <div className="overflow-y-auto flex-1">
+          {children}
+        </div>
       </div>
     </div>
   );
