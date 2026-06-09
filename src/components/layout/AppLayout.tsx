@@ -48,7 +48,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen overflow-hidden bg-[var(--bg-primary)]">
-      {/* Mobile overlay */}
+
+      {/* ── Mobile overlay ── */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-20 bg-black/40 lg:hidden"
@@ -56,19 +57,20 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         />
       )}
 
-      {/* Sidebar */}
+      {/* ── Sidebar ── */}
       <aside
         className={cn(
-          'fixed lg:relative z-30 flex flex-col h-full w-64 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] transition-transform duration-300 flex-shrink-0',
+          'fixed lg:sticky lg:top-0 z-20 flex flex-col h-screen w-60 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] transition-transform duration-300 flex-shrink-0',
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         {/* Logo */}
-        <div className="flex items-center justify-between px-5 py-5 border-b border-[var(--border-color)]">
+        <div className="flex items-center justify-between px-4 py-4 border-b border-[var(--border-color)]">
           <Link href="/library" className="flex items-center gap-2.5" onClick={() => setSidebarOpen(false)}>
-            <div className="w-8 h-8 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center shadow-sm">
+            <div className="w-8 h-8 rounded-lg bg-[var(--accent-primary)] flex items-center justify-center shadow-sm flex-shrink-0">
               <BookOpen size={16} className="text-white" />
             </div>
-            <span className="text-lg font-bold text-[var(--text-primary)]" style={{ fontFamily: 'Playfair Display, serif' }}>
+            <span className="text-base font-bold text-[var(--text-primary)]" style={{ fontFamily: 'Playfair Display, serif' }}>
               SayfaSayfa
             </span>
           </Link>
@@ -109,10 +111,12 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             })}
           </ul>
 
-          {/* Vocabulary category legend */}
+          {/* Color legend */}
           <div className="mt-6 px-2">
-            <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">Highlight Colors</p>
-            <div className="space-y-1.5">
+            <p className="text-xs font-semibold text-[var(--text-muted)] uppercase tracking-wider mb-3">
+              Highlight Colors
+            </p>
+            <div className="space-y-2">
               {[
                 { color: '#c7893c', label: 'Known but forgot' },
                 { color: '#d55e27', label: 'Completely unknown' },
@@ -128,19 +132,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </nav>
 
         {/* Bottom actions */}
-        <div className="px-3 py-4 border-t border-[var(--border-color)] space-y-0.5">
+        <div className="px-3 py-3 border-t border-[var(--border-color)] space-y-0.5">
           <button
             onClick={() => setHelpOpen(true)}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all"
           >
             <HelpCircle size={16} />
-            <span>Keyboard shortcuts</span>
-            <kbd className="ml-auto font-mono text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] px-1.5 py-0.5 rounded text-[var(--text-muted)]">?</kbd>
+            <span>Shortcuts</span>
+            <kbd className="ml-auto font-mono text-xs bg-[var(--bg-secondary)] border border-[var(--border-color)] px-1.5 py-0.5 rounded">?</kbd>
           </button>
 
           <button
             onClick={toggleTheme}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-[var(--bg-secondary)] hover:text-[var(--text-primary)] transition-all"
           >
             {darkMode ? <Sun size={16} /> : <Moon size={16} />}
             <span>{darkMode ? 'Light mode' : 'Dark mode'}</span>
@@ -148,7 +152,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           <button
             onClick={handleSignOut}
-            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-500 transition-all"
+            className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium text-[var(--text-secondary)] hover:bg-red-500/10 hover:text-red-500 transition-all"
           >
             <LogOut size={16} />
             <span>Sign out</span>
@@ -156,8 +160,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      {/* Main */}
+      {/* ── Main content ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
+
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-[var(--border-color)] bg-[var(--bg-card)] flex-shrink-0">
           <button
