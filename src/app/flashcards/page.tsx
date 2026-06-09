@@ -1,14 +1,17 @@
 'use client';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import {
   RotateCcw, ArrowRight, CheckCircle, XCircle,
-  MinusCircle, BookOpen, Pencil, X,
+  MinusCircle, BookOpen, Pencil, X, Zap, Trophy, Flame, Star,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { HighlightedWord, WordCategory, CATEGORY_LABELS, CATEGORY_COLORS } from '@/types';
 import { Button } from '@/components/ui/Button';
 import { CategoryBadge } from '@/components/ui/Badge';
+import { useSound } from '@/hooks/useSound';
+import { useGameStats } from '@/hooks/useGameStats';
+import { Confetti, LevelUpBanner, StreakPopup, FloatingXP } from '@/components/ui/GameEffects';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
 
@@ -21,12 +24,7 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
-/* ── Edit meaning modal ── */
-function EditMeaningModal({
-  word,
-  onSave,
-  onClose,
-}: {
+function EditMeaningModal({ word, onSave, onClose }: {
   word: HighlightedWord;
   onSave: (meaning: string, translation: string, note: string) => void;
   onClose: () => void;
@@ -34,47 +32,31 @@ function EditMeaningModal({
   const [meaning, setMeaning] = useState(word.user_meaning || '');
   const [translation, setTranslation] = useState(word.user_translation || '');
   const [note, setNote] = useState(word.user_note || '');
-
-  const inputCls =
-    'w-full px-3 py-2.5 rounded-xl border border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] focus:ring-1 focus:ring-[var(--accent-primary)] transition-all';
+  const inputCls = 'w-full px-4 py-3 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] transition-all font-semibold';
 
   return (
-    <div
-      onClick={onClose}
-      style={{
-        position: 'fixed', inset: 0, zIndex: 9999,
-        backgroundColor: 'rgba(0,0,0,0.6)',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16,
-      }}
-    >
-      <div
-        onClick={e => e.stopPropagation()}
-        className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl shadow-2xl w-full max-w-md"
-      >
-        <div className="flex items-center justify-between px-6 py-4 border-b border-[var(--border-color)]">
-          <h2 className="text-lg font-semibold text-[var(--text-primary)]" style={{ fontFamily: 'Playfair Display, serif' }}>
-            Add meaning for &ldquo;{word.word}&rdquo;
-          </h2>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1.5 rounded-lg hover:bg-[var(--bg-secondary)]">
-            <X size={18} />
-          </button>
+    <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
+      <div onClick={e => e.stopPropagation()} className="bg-[var(--bg-card)] rounded-3xl shadow-2xl w-full max-w-md border-2 border-[var(--border-color)]">
+        <div className="flex items-center justify-between px-6 py-5 border-b-2 border-[var(--border-color)]">
+          <h2 className="text-lg font-black text-[var(--text-primary)]">✏️ Add meaning for &ldquo;{word.word}&rdquo;</h2>
+          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1.5 rounded-xl hover:bg-[var(--bg-secondary)]"><X size={18} /></button>
         </div>
         <div className="p-6 space-y-4">
           <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Meaning (Turkish definition)</label>
-            <input className={inputCls} value={meaning} onChange={e => setMeaning(e.target.value)} placeholder="e.g. güzel — beautiful" />
+            <label className="block text-sm font-bold text-[var(--text-secondary)] mb-2">📖 Meaning</label>
+            <input className={inputCls} value={meaning} onChange={e => setMeaning(e.target.value)} placeholder="Turkish meaning or definition…" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Translation (your language)</label>
-            <input className={inputCls} value={translation} onChange={e => setTranslation(e.target.value)} placeholder="e.g. beautiful, pretty" />
+            <label className="block text-sm font-bold text-[var(--text-secondary)] mb-2">🌍 Translation</label>
+            <input className={inputCls} value={translation} onChange={e => setTranslation(e.target.value)} placeholder="In your language…" />
           </div>
           <div>
-            <label className="block text-sm font-medium text-[var(--text-secondary)] mb-1.5">Personal note</label>
-            <textarea className={`${inputCls} resize-none`} value={note} onChange={e => setNote(e.target.value)} placeholder="Memory trick, usage notes…" rows={2} />
+            <label className="block text-sm font-bold text-[var(--text-secondary)] mb-2">📝 Note</label>
+            <textarea className={`${inputCls} resize-none`} value={note} onChange={e => setNote(e.target.value)} placeholder="Memory trick or usage notes…" rows={2} />
           </div>
           <div className="flex justify-end gap-3 pt-2">
-            <Button variant="ghost" onClick={onClose}>Cancel</Button>
-            <Button onClick={() => onSave(meaning, translation, note)}>Save</Button>
+            <button onClick={onClose} className="px-4 py-2 rounded-xl font-bold text-sm text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]">Cancel</button>
+            <button onClick={() => onSave(meaning, translation, note)} className="px-6 py-2 rounded-xl font-black text-sm text-white" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>Save ✓</button>
           </div>
         </div>
       </div>
@@ -90,26 +72,31 @@ export default function FlashcardsPage() {
   const [loading, setLoading] = useState(true);
   const [started, setStarted] = useState(false);
   const [selectedCats, setSelectedCats] = useState<Set<WordCategory>>(new Set(['forgot', 'unknown', 'note']));
-  const [shuffleMode, setShuffleMode] = useState(false);
+  const [shuffleMode, setShuffleMode] = useState(true);
   const [reviews, setReviews] = useState<Record<string, Difficulty>>({});
   const [finished, setFinished] = useState(false);
   const [editWord, setEditWord] = useState<HighlightedWord | null>(null);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [showStreakPopup, setShowStreakPopup] = useState(false);
+  const [floatingXP, setFloatingXP] = useState<{ id: number; amount: number; x: number; y: number } | null>(null);
+  const [cardAnim, setCardAnim] = useState('');
+
+  const { play } = useSound();
+  const { stats, recordCorrect, recordIncorrect, justLeveledUp, xpPercent } = useGameStats();
 
   useEffect(() => {
     (async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      const { data } = await supabase
-        .from('highlighted_words')
-        .select('*, stories(title)')
-        .eq('user_id', user.id);
+      const { data } = await supabase.from('highlighted_words').select('*, stories(title)').eq('user_id', user.id);
       setWords((data as HighlightedWord[]) || []);
       setLoading(false);
     })();
   }, []);
 
   const toggleCat = (cat: WordCategory) => {
+    play('click');
     setSelectedCats(prev => {
       const next = new Set(prev);
       if (next.has(cat)) next.delete(cat); else next.add(cat);
@@ -118,6 +105,7 @@ export default function FlashcardsPage() {
   };
 
   const startStudy = () => {
+    play('whoosh');
     let filtered = words.filter(w => selectedCats.has(w.category));
     if (shuffleMode) filtered = shuffle(filtered);
     setDeck(filtered);
@@ -128,33 +116,61 @@ export default function FlashcardsPage() {
     setStarted(true);
   };
 
-  const markDifficulty = async (diff: Difficulty) => {
+  const showXP = useCallback((amount: number) => {
+    setFloatingXP({ id: Date.now(), amount, x: window.innerWidth / 2 - 30, y: window.innerHeight / 2 - 60 });
+  }, []);
+
+  const markDifficulty = async (diff: Difficulty, e: React.MouseEvent) => {
     const word = deck[current];
     setReviews(prev => ({ ...prev, [word.id]: diff }));
+
+    if (diff === 'easy') {
+      play('correct');
+      recordCorrect();
+      showXP(15);
+      setCardAnim('animate-slide-up');
+      if (stats.currentStreak > 0 && (stats.currentStreak + 1) % 3 === 0) {
+        play('streak');
+        setShowStreakPopup(true);
+        setTimeout(() => setShowStreakPopup(false), 2000);
+      }
+    } else if (diff === 'medium') {
+      play('flip');
+      recordCorrect();
+      showXP(8);
+      setCardAnim('animate-fade-in');
+    } else {
+      play('incorrect');
+      recordIncorrect();
+      showXP(3);
+      setCardAnim('animate-shake');
+    }
+
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (user) {
-      await supabase.from('flashcard_reviews').insert({
-        user_id: user.id, word_id: word.id, difficulty: diff,
-      });
+      await supabase.from('flashcard_reviews').insert({ user_id: user.id, word_id: word.id, difficulty: diff });
     }
-    if (current + 1 >= deck.length) {
-      setFinished(true);
-    } else {
-      setCurrent(c => c + 1);
-      setFlipped(false);
-    }
+
+    setTimeout(() => {
+      setCardAnim('');
+      if (current + 1 >= deck.length) {
+        play('success');
+        setShowConfetti(true);
+        setTimeout(() => setShowConfetti(false), 2000);
+        setFinished(true);
+      } else {
+        setCurrent(c => c + 1);
+        setFlipped(false);
+      }
+    }, 400);
   };
 
   const handleSaveMeaning = async (meaning: string, translation: string, note: string) => {
     if (!editWord) return;
+    play('pop');
     const supabase = createClient();
-    const { data } = await supabase
-      .from('highlighted_words')
-      .update({ user_meaning: meaning, user_translation: translation, user_note: note })
-      .eq('id', editWord.id)
-      .select()
-      .single();
+    const { data } = await supabase.from('highlighted_words').update({ user_meaning: meaning, user_translation: translation, user_note: note }).eq('id', editWord.id).select().single();
     if (data) {
       const updated = data as HighlightedWord;
       setWords(prev => prev.map(w => w.id === updated.id ? updated : w));
@@ -167,10 +183,11 @@ export default function FlashcardsPage() {
   const easyCount = reviewStats.filter(r => r === 'easy').length;
   const medCount  = reviewStats.filter(r => r === 'medium').length;
   const hardCount = reviewStats.filter(r => r === 'hard').length;
+  const accuracy  = reviewStats.length ? Math.round(((easyCount + medCount) / reviewStats.length) * 100) : 0;
 
   if (loading) return (
     <div className="flex items-center justify-center h-64">
-      <div className="w-8 h-8 border-2 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
+      <div className="w-10 h-10 border-4 border-[var(--accent-primary)] border-t-transparent rounded-full animate-spin" />
     </div>
   );
 
@@ -178,53 +195,78 @@ export default function FlashcardsPage() {
   if (!started) {
     return (
       <div className="p-6 max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold mb-1" style={{ fontFamily: 'Playfair Display, serif' }}>Flashcards</h1>
-        <p className="text-[var(--text-muted)] text-sm mb-8">{words.length} words available</p>
-
-        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-6 mb-4">
-          <h2 className="text-sm font-semibold mb-4 text-[var(--text-secondary)]">Choose categories to study</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            {(['forgot', 'unknown', 'note'] as WordCategory[]).map(cat => {
-              const count = words.filter(w => w.category === cat).length;
-              const color = CATEGORY_COLORS[cat];
-              const active = selectedCats.has(cat);
-              return (
-                <button
-                  key={cat}
-                  onClick={() => toggleCat(cat)}
-                  className={`p-4 rounded-xl border-2 text-left transition-all ${active ? 'border-[var(--accent-primary)]' : 'border-[var(--border-color)] opacity-60'}`}
-                >
-                  <div className="w-3 h-3 rounded-full mb-2" style={{ background: color }} />
-                  <div className="text-sm font-medium text-[var(--text-primary)]">{CATEGORY_LABELS[cat]}</div>
-                  <div className="text-2xl font-bold mt-1" style={{ color, fontFamily: 'Playfair Display, serif' }}>{count}</div>
-                  <div className="text-xs text-[var(--text-muted)]">words</div>
-                </button>
-              );
-            })}
-          </div>
+        <div className="text-center mb-8">
+          <div className="text-5xl mb-3 animate-float inline-block">🃏</div>
+          <h1 className="text-4xl font-black text-[var(--text-primary)]">Flashcards</h1>
+          <p className="text-[var(--text-muted)] font-semibold mt-1">{words.length} words in your collection</p>
         </div>
 
-        <div className="bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl p-5 mb-6 flex items-center justify-between">
+        {/* Category cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-5">
+          {(['forgot', 'unknown', 'note'] as WordCategory[]).map(cat => {
+            const count = words.filter(w => w.category === cat).length;
+            const active = selectedCats.has(cat);
+            const emoji = cat === 'forgot' ? '🟡' : cat === 'unknown' ? '🔴' : '🟢';
+            return (
+              <button
+                key={cat}
+                onClick={() => toggleCat(cat)}
+                className={`p-5 rounded-3xl border-3 text-left transition-all duration-200 ${active ? 'scale-105' : 'opacity-60 hover:opacity-80 hover:scale-102'}`}
+                style={{
+                  border: `3px solid ${active ? CATEGORY_COLORS[cat] : 'var(--border-color)'}`,
+                  background: active ? `${CATEGORY_COLORS[cat]}15` : 'var(--bg-card)',
+                  boxShadow: active ? `0 4px 20px ${CATEGORY_COLORS[cat]}33` : 'var(--shadow-card)',
+                }}
+              >
+                <div className="text-2xl mb-2">{emoji}</div>
+                <div className="text-sm font-black text-[var(--text-primary)] mb-1">{CATEGORY_LABELS[cat]}</div>
+                <div className="text-3xl font-black" style={{ color: CATEGORY_COLORS[cat] }}>{count}</div>
+                <div className="text-xs font-bold text-[var(--text-muted)]">words</div>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Shuffle toggle */}
+        <div className="game-card p-5 mb-6 flex items-center justify-between">
           <div>
-            <div className="text-sm font-medium text-[var(--text-primary)]">Shuffle mode</div>
-            <div className="text-xs text-[var(--text-muted)]">Randomize card order</div>
+            <div className="text-sm font-black text-[var(--text-primary)]">🔀 Shuffle Mode</div>
+            <div className="text-xs font-semibold text-[var(--text-muted)]">Randomize card order</div>
           </div>
           <button
-            onClick={() => setShuffleMode(!shuffleMode)}
-            className={`relative w-11 h-6 rounded-full transition-colors ${shuffleMode ? 'bg-[var(--accent-primary)]' : 'bg-[var(--border-color)]'}`}
+            onClick={() => { setShuffleMode(!shuffleMode); play('click'); }}
+            className={`relative w-14 h-7 rounded-full transition-all duration-300 ${shuffleMode ? 'shadow-lg' : ''}`}
+            style={{ background: shuffleMode ? 'linear-gradient(135deg, #6366f1, #8b5cf6)' : 'var(--border-color)' }}
           >
-            <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${shuffleMode ? 'translate-x-5' : ''}`} />
+            <span className={`absolute top-0.5 left-0.5 w-6 h-6 bg-white rounded-full shadow-md transition-transform duration-300 ${shuffleMode ? 'translate-x-7' : ''}`} />
           </button>
         </div>
 
-        <Button
+        {/* XP mini bar */}
+        <div className="game-card p-4 mb-6 flex items-center gap-4">
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <Zap size={18} className="text-yellow-500" />
+            <span className="font-black text-[var(--text-primary)]">Level {stats.level}</span>
+          </div>
+          <div className="flex-1">
+            <div className="h-3 rounded-full overflow-hidden" style={{ background: 'var(--bg-secondary)' }}>
+              <div className="h-full rounded-full transition-all" style={{ width: `${xpPercent}%`, background: 'linear-gradient(90deg, #f59e0b, #f97316)', boxShadow: '0 0 8px #f59e0b88' }} />
+            </div>
+          </div>
+          <span className="text-xs font-bold text-yellow-500 flex-shrink-0">{stats.xp % 100}/100 XP</span>
+        </div>
+
+        <button
           onClick={startStudy}
-          size="lg"
-          className="w-full"
           disabled={selectedCats.size === 0 || words.filter(w => selectedCats.has(w.category)).length === 0}
+          className="w-full py-5 rounded-3xl text-white font-black text-xl flex items-center justify-center gap-3 transition-all hover:scale-[1.02] active:scale-95 disabled:opacity-40 disabled:hover:scale-100"
+          style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)', boxShadow: '0 8px 32px rgba(99,102,241,0.4)' }}
         >
-          Start studying {words.filter(w => selectedCats.has(w.category)).length} cards <ArrowRight size={18} />
-        </Button>
+          <span>🚀 Start Studying</span>
+          <span className="bg-white/20 px-3 py-1 rounded-full text-base">
+            {words.filter(w => selectedCats.has(w.category)).length} cards
+          </span>
+        </button>
       </div>
     );
   }
@@ -233,32 +275,62 @@ export default function FlashcardsPage() {
   if (finished) {
     return (
       <div className="p-6 max-w-md mx-auto text-center">
-        <div className="w-20 h-20 rounded-full bg-[var(--accent-primary)]/10 flex items-center justify-center mx-auto mb-6">
-          <CheckCircle size={40} className="text-[var(--accent-primary)]" />
+        <Confetti active={showConfetti} />
+        <div className="text-7xl mb-4 animate-bounce-in inline-block">
+          {accuracy >= 80 ? '🏆' : accuracy >= 60 ? '⭐' : '💪'}
         </div>
-        <h2 className="text-2xl font-bold mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>Session complete!</h2>
-        <p className="text-[var(--text-muted)] mb-8">You reviewed {deck.length} flashcards</p>
-        <div className="grid grid-cols-3 gap-3 mb-8">
-          <div className="bg-green-500/10 rounded-xl p-4">
-            <div className="text-2xl font-bold text-green-600" style={{ fontFamily: 'Playfair Display, serif' }}>{easyCount}</div>
-            <div className="text-xs text-green-600 mt-0.5">Easy</div>
+        <h2 className="text-3xl font-black text-[var(--text-primary)] mb-1">
+          {accuracy >= 80 ? 'Excellent!' : accuracy >= 60 ? 'Good job!' : 'Keep going!'}
+        </h2>
+        <p className="text-[var(--text-muted)] font-semibold mb-8">Session complete — {deck.length} cards reviewed</p>
+
+        <div className="grid grid-cols-3 gap-3 mb-6">
+          <div className="game-card p-4 text-center">
+            <div className="text-3xl font-black text-green-500 mb-1">{easyCount}</div>
+            <div className="text-xs font-bold text-green-500">✓ Easy</div>
           </div>
-          <div className="bg-yellow-500/10 rounded-xl p-4">
-            <div className="text-2xl font-bold text-yellow-600" style={{ fontFamily: 'Playfair Display, serif' }}>{medCount}</div>
-            <div className="text-xs text-yellow-600 mt-0.5">Medium</div>
+          <div className="game-card p-4 text-center">
+            <div className="text-3xl font-black text-yellow-500 mb-1">{medCount}</div>
+            <div className="text-xs font-bold text-yellow-500">~ Medium</div>
           </div>
-          <div className="bg-red-500/10 rounded-xl p-4">
-            <div className="text-2xl font-bold text-red-600" style={{ fontFamily: 'Playfair Display, serif' }}>{hardCount}</div>
-            <div className="text-xs text-red-600 mt-0.5">Hard</div>
+          <div className="game-card p-4 text-center">
+            <div className="text-3xl font-black text-red-500 mb-1">{hardCount}</div>
+            <div className="text-xs font-bold text-red-500">✗ Hard</div>
           </div>
         </div>
+
+        {/* Accuracy bar */}
+        <div className="game-card p-5 mb-6">
+          <div className="flex justify-between mb-3">
+            <span className="font-black text-[var(--text-primary)]">Accuracy</span>
+            <span className="font-black text-2xl" style={{ color: accuracy >= 80 ? '#10b981' : accuracy >= 60 ? '#f59e0b' : '#ef4444' }}>
+              {accuracy}%
+            </span>
+          </div>
+          <div className="h-4 rounded-full overflow-hidden" style={{ background: 'var(--bg-secondary)' }}>
+            <div
+              className="h-full rounded-full transition-all duration-1000"
+              style={{
+                width: `${accuracy}%`,
+                background: accuracy >= 80 ? 'linear-gradient(90deg,#10b981,#34d399)' : accuracy >= 60 ? 'linear-gradient(90deg,#f59e0b,#fbbf24)' : 'linear-gradient(90deg,#ef4444,#f87171)',
+              }}
+            />
+          </div>
+        </div>
+
+        {/* XP earned */}
+        <div className="game-card p-4 mb-6 flex items-center justify-center gap-3">
+          <Zap size={20} className="text-yellow-500" />
+          <span className="font-black text-yellow-500 text-lg">+{(easyCount * 15) + (medCount * 8) + (hardCount * 3)} XP earned!</span>
+        </div>
+
         <div className="flex gap-3">
-          <Button variant="outline" onClick={() => { setStarted(false); }} className="flex-1">
-            <RotateCcw size={16} /> New session
-          </Button>
-          <Button onClick={startStudy} className="flex-1">
+          <button onClick={() => setStarted(false)} className="flex-1 py-4 rounded-2xl font-black text-sm border-2 border-[var(--border-color)] text-[var(--text-primary)] hover:bg-[var(--bg-secondary)] transition-all flex items-center justify-center gap-2">
+            <RotateCcw size={16} /> New Session
+          </button>
+          <button onClick={startStudy} className="flex-1 py-4 rounded-2xl font-black text-sm text-white flex items-center justify-center gap-2 transition-all hover:opacity-90" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
             <RotateCcw size={16} /> Retry
-          </Button>
+          </button>
         </div>
       </div>
     );
@@ -271,117 +343,124 @@ export default function FlashcardsPage() {
 
   return (
     <div className="p-6 max-w-2xl mx-auto">
+      <Confetti active={showConfetti} />
+      <LevelUpBanner level={stats.level} visible={justLeveledUp} />
+      <StreakPopup streak={stats.currentStreak} visible={showStreakPopup} />
+      {floatingXP && (
+        <FloatingXP
+          amount={floatingXP.amount}
+          x={floatingXP.x}
+          y={floatingXP.y}
+          onDone={() => setFloatingXP(null)}
+        />
+      )}
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
-        <button onClick={() => setStarted(false)} className="text-sm text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors">
+      <div className="flex items-center justify-between mb-4">
+        <button onClick={() => { setStarted(false); play('click'); }} className="text-sm font-bold text-[var(--text-muted)] hover:text-[var(--text-primary)] transition-colors flex items-center gap-1">
           ← Back
         </button>
-        <div className="text-sm text-[var(--text-muted)]">{current + 1} / {deck.length}</div>
-        <CategoryBadge category={card.category} />
+
+        {/* Streak badge */}
+        {stats.currentStreak >= 2 && (
+          <div className="streak-badge">
+            <Flame size={13} /> {stats.currentStreak}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2">
+          <span className="text-sm font-black text-[var(--text-muted)]">{current + 1}/{deck.length}</span>
+          <CategoryBadge category={card.category} />
+        </div>
       </div>
 
       {/* Progress bar */}
-      <div className="w-full h-1.5 bg-[var(--border-color)] rounded-full mb-8">
+      <div className="h-3 rounded-full mb-6 overflow-hidden" style={{ background: 'var(--bg-secondary)' }}>
         <div
-          className="h-full bg-[var(--accent-primary)] rounded-full transition-all"
-          style={{ width: `${((current + 1) / deck.length) * 100}%` }}
+          className="h-full rounded-full transition-all duration-500"
+          style={{
+            width: `${((current + 1) / deck.length) * 100}%`,
+            background: 'linear-gradient(90deg, #6366f1, #8b5cf6)',
+            boxShadow: '0 0 8px rgba(99,102,241,0.5)',
+          }}
         />
       </div>
 
-      {/* Flashcard */}
+      {/* Card */}
       <div
-        className="flashcard-container mb-6 cursor-pointer select-none"
-        style={{ height: 300 }}
-        onClick={() => setFlipped(!flipped)}
+        className={`flashcard-container mb-5 cursor-pointer select-none ${cardAnim}`}
+        style={{ height: 320 }}
+        onClick={() => { setFlipped(!flipped); play('flip'); }}
       >
         <div className={`flashcard ${flipped ? 'flipped' : ''}`}>
 
           {/* Front */}
-          <div className="flashcard-front bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl flex flex-col items-center justify-center p-8 shadow-sm">
-            <p className="text-xs text-[var(--text-muted)] mb-6 uppercase tracking-wider font-semibold">Turkish Word</p>
-            <p
-              className="text-5xl font-bold text-center mb-6"
-              style={{ color: CATEGORY_COLORS[card.category], fontFamily: 'Playfair Display, serif' }}
-            >
+          <div className="flashcard-front rounded-3xl flex flex-col items-center justify-center p-8 border-2"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)', boxShadow: 'var(--shadow-card)' }}
+          >
+            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-5">🇹🇷 Turkish Word</p>
+            <p className="text-6xl font-black text-center mb-5" style={{ color: CATEGORY_COLORS[card.category] }}>
               {card.word}
             </p>
             {card.sentence && (
-              <p className="text-sm text-[var(--text-muted)] italic text-center max-w-sm">
-                …{card.sentence}…
+              <p className="text-sm font-semibold text-[var(--text-muted)] italic text-center max-w-xs leading-relaxed">
+                &ldquo;…{card.sentence}…&rdquo;
               </p>
             )}
-            <p className="text-xs text-[var(--text-muted)] mt-6 opacity-60">Click to reveal answer</p>
+            <p className="text-xs font-bold text-[var(--text-muted)] mt-6 opacity-50">👆 Tap to reveal</p>
           </div>
 
           {/* Back */}
-          <div className="flashcard-back bg-[var(--bg-card)] border border-[var(--border-color)] rounded-2xl flex flex-col p-6 shadow-sm overflow-y-auto">
-            <p className="text-xs text-[var(--text-muted)] mb-4 uppercase tracking-wider font-semibold text-center">Answer</p>
+          <div className="flashcard-back rounded-3xl flex flex-col p-6 border-2 overflow-y-auto"
+            style={{ background: 'var(--bg-card)', borderColor: 'var(--accent-primary)', boxShadow: '0 0 0 4px rgba(99,102,241,0.1)' }}
+          >
+            <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-3 text-center">Answer</p>
 
             {hasBack ? (
-              <div className="space-y-3 flex-1">
-                {/* Word */}
-                <div className="text-center mb-2">
-                  <span className="text-2xl font-bold text-[var(--text-primary)]" style={{ fontFamily: 'Playfair Display, serif' }}>
-                    {card.word}
-                  </span>
+              <div className="space-y-2.5 flex-1">
+                <div className="text-center mb-1">
+                  <span className="text-2xl font-black text-[var(--text-primary)]">{card.word}</span>
                 </div>
-
-                {/* Meaning */}
                 {card.user_meaning && (
-                  <div className="bg-[var(--bg-secondary)] rounded-xl p-3">
-                    <p className="text-xs text-[var(--text-muted)] font-semibold mb-1">📖 Meaning</p>
-                    <p className="text-sm text-[var(--text-primary)]">{card.user_meaning}</p>
+                  <div className="rounded-2xl p-3" style={{ background: 'var(--bg-secondary)' }}>
+                    <p className="text-xs font-black text-[var(--text-muted)] mb-1">📖 Meaning</p>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">{card.user_meaning}</p>
                   </div>
                 )}
-
-                {/* Translation */}
                 {card.user_translation && (
-                  <div className="bg-[var(--bg-secondary)] rounded-xl p-3">
-                    <p className="text-xs text-[var(--text-muted)] font-semibold mb-1">🌍 Translation</p>
-                    <p className="text-sm text-[var(--text-primary)]">{card.user_translation}</p>
+                  <div className="rounded-2xl p-3" style={{ background: 'var(--bg-secondary)' }}>
+                    <p className="text-xs font-black text-[var(--text-muted)] mb-1">🌍 Translation</p>
+                    <p className="text-sm font-bold text-[var(--text-primary)]">{card.user_translation}</p>
                   </div>
                 )}
-
-                {/* Note */}
                 {card.user_note && (
-                  <div className="bg-[var(--bg-secondary)] rounded-xl p-3">
-                    <p className="text-xs text-[var(--text-muted)] font-semibold mb-1">📝 Note</p>
-                    <p className="text-sm italic text-[var(--text-secondary)]">{card.user_note}</p>
+                  <div className="rounded-2xl p-3" style={{ background: 'var(--bg-secondary)' }}>
+                    <p className="text-xs font-black text-[var(--text-muted)] mb-1">📝 Note</p>
+                    <p className="text-sm font-semibold italic text-[var(--text-secondary)]">{card.user_note}</p>
                   </div>
                 )}
-
-                {/* Sentence */}
-                {card.sentence && (
-                  <div className="bg-[var(--bg-secondary)] rounded-xl p-3">
-                    <p className="text-xs text-[var(--text-muted)] font-semibold mb-1">💬 Example</p>
-                    <p className="text-sm text-[var(--text-secondary)] italic">…{card.sentence}…</p>
+                {card.sentence && !card.user_meaning && (
+                  <div className="rounded-2xl p-3" style={{ background: 'var(--bg-secondary)' }}>
+                    <p className="text-xs font-black text-[var(--text-muted)] mb-1">💬 Example</p>
+                    <p className="text-sm italic text-[var(--text-secondary)]">…{card.sentence}…</p>
                   </div>
                 )}
-
-                {/* Story link */}
                 {storyTitle && (
-                  <Link
-                    href={`/read/${card.story_id}`}
-                    className="inline-flex items-center gap-1.5 text-xs text-[var(--accent-primary)] hover:underline"
-                    onClick={e => e.stopPropagation()}
-                  >
-                    <BookOpen size={12} /> Open in &ldquo;{storyTitle}&rdquo;
+                  <Link href={`/read/${card.story_id}`} onClick={e => e.stopPropagation()}
+                    className="inline-flex items-center gap-1.5 text-xs font-bold text-[var(--accent-primary)] hover:underline">
+                    <BookOpen size={12} /> From &ldquo;{storyTitle}&rdquo;
                   </Link>
                 )}
               </div>
             ) : (
-              /* No meaning saved yet */
               <div className="flex-1 flex flex-col items-center justify-center gap-4">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-[var(--text-primary)] mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
-                    {card.word}
-                  </p>
-                  <p className="text-sm text-[var(--text-muted)]">No meaning saved yet</p>
+                  <p className="text-2xl font-black text-[var(--text-primary)] mb-2">{card.word}</p>
+                  <p className="text-sm font-bold text-[var(--text-muted)]">No meaning saved yet</p>
                 </div>
-                <button
-                  onClick={e => { e.stopPropagation(); setEditWord(card); }}
-                  className="flex items-center gap-2 px-4 py-2 bg-[var(--accent-primary)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
-                >
+                <button onClick={e => { e.stopPropagation(); setEditWord(card); play('pop'); }}
+                  className="flex items-center gap-2 px-5 py-2.5 rounded-2xl text-white font-black text-sm"
+                  style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>
                   <Pencil size={14} /> Add meaning now
                 </button>
               </div>
@@ -390,57 +469,47 @@ export default function FlashcardsPage() {
         </div>
       </div>
 
-      {/* Add/edit meaning button */}
+      {/* Edit button */}
       <div className="flex justify-center mb-4">
-        <button
-          onClick={() => setEditWord(card)}
-          className="flex items-center gap-1.5 text-xs text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors"
-        >
-          <Pencil size={12} />
-          {hasBack ? 'Edit meaning' : 'Add meaning'}
+        <button onClick={() => { setEditWord(card); play('click'); }}
+          className="flex items-center gap-1.5 text-xs font-bold text-[var(--text-muted)] hover:text-[var(--accent-primary)] transition-colors px-3 py-1.5 rounded-xl hover:bg-[var(--bg-secondary)]">
+          <Pencil size={12} /> {hasBack ? 'Edit meaning' : 'Add meaning'}
         </button>
       </div>
 
-      {/* Difficulty buttons — only when flipped */}
-      {flipped && (
-        <div className="flex gap-3 animate-fade-in">
-          <button
-            onClick={() => markDifficulty('easy')}
-            className="flex-1 flex flex-col items-center gap-1.5 py-3 bg-green-500/10 hover:bg-green-500/20 rounded-xl transition-colors"
-          >
-            <CheckCircle size={20} className="text-green-500" />
-            <span className="text-xs font-medium text-green-600">Easy</span>
+      {/* Difficulty buttons */}
+      {flipped ? (
+        <div className="grid grid-cols-3 gap-3 animate-slide-up">
+          <button onClick={e => markDifficulty('hard', e)}
+            className="flex flex-col items-center gap-2 py-4 rounded-2xl font-black text-sm transition-all hover:scale-105 active:scale-95 border-2 border-red-200"
+            style={{ background: 'rgba(239,68,68,0.08)', color: '#ef4444' }}>
+            <XCircle size={24} />
+            <span>Hard</span>
+            <span className="text-xs opacity-70">+3 XP</span>
           </button>
-          <button
-            onClick={() => markDifficulty('medium')}
-            className="flex-1 flex flex-col items-center gap-1.5 py-3 bg-yellow-500/10 hover:bg-yellow-500/20 rounded-xl transition-colors"
-          >
-            <MinusCircle size={20} className="text-yellow-500" />
-            <span className="text-xs font-medium text-yellow-600">Medium</span>
+          <button onClick={e => markDifficulty('medium', e)}
+            className="flex flex-col items-center gap-2 py-4 rounded-2xl font-black text-sm transition-all hover:scale-105 active:scale-95 border-2 border-yellow-200"
+            style={{ background: 'rgba(245,158,11,0.08)', color: '#f59e0b' }}>
+            <MinusCircle size={24} />
+            <span>Medium</span>
+            <span className="text-xs opacity-70">+8 XP</span>
           </button>
-          <button
-            onClick={() => markDifficulty('hard')}
-            className="flex-1 flex flex-col items-center gap-1.5 py-3 bg-red-500/10 hover:bg-red-500/20 rounded-xl transition-colors"
-          >
-            <XCircle size={20} className="text-red-500" />
-            <span className="text-xs font-medium text-red-600">Hard</span>
+          <button onClick={e => markDifficulty('easy', e)}
+            className="flex flex-col items-center gap-2 py-4 rounded-2xl font-black text-sm transition-all hover:scale-105 active:scale-95 border-2 border-green-200"
+            style={{ background: 'rgba(16,185,129,0.08)', color: '#10b981' }}>
+            <CheckCircle size={24} />
+            <span>Easy</span>
+            <span className="text-xs opacity-70">+15 XP</span>
           </button>
         </div>
-      )}
-
-      {!flipped && (
-        <p className="text-center text-xs text-[var(--text-muted)]">
-          Flip the card first, then rate your recall
+      ) : (
+        <p className="text-center text-sm font-bold text-[var(--text-muted)]">
+          👆 Tap the card to reveal the answer
         </p>
       )}
 
-      {/* Edit meaning modal */}
       {editWord && (
-        <EditMeaningModal
-          word={editWord}
-          onSave={handleSaveMeaning}
-          onClose={() => setEditWord(null)}
-        />
+        <EditMeaningModal word={editWord} onSave={handleSaveMeaning} onClose={() => setEditWord(null)} />
       )}
     </div>
   );
