@@ -60,7 +60,6 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <aside
         className={cn(
           'fixed lg:relative z-30 flex flex-col h-full w-64 bg-[var(--bg-sidebar)] border-r border-[var(--border-color)] transition-transform duration-300 flex-shrink-0',
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
         )}
       >
         {/* Logo */}
