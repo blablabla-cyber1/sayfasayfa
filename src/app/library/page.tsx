@@ -155,7 +155,12 @@ export default function LibraryPage() {
                   <div style={{ height: 180, background: 'linear-gradient(135deg,#6366f122,#8b5cf622)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {story.cover_image_url ? (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={story.cover_image_url} alt={story.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                      <img 
+  src={story.cover_image_url} 
+  alt={story.title} 
+  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+/>
                     ) : (
                       <BookOpen size={48} color="#6366f144" />
                     )}
