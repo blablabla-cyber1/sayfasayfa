@@ -268,7 +268,6 @@ transition: 'all 0.2s',
 
                         {menuOpen === story.id && (
   <>
-    <div onClick={() => setMenuOpen(null)} style={{ position: 'fixed', inset: 0, zIndex: 100 }} />
     <div style={{
       position: 'absolute', right: 0, top: '100%', zIndex: 101,
       background: 'var(--bg-card)',
