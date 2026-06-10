@@ -11,6 +11,7 @@ import { Button } from '@/components/ui/Button';
 import { CategoryBadge } from '@/components/ui/Badge';
 import { useSound } from '@/hooks/useSound';
 import { useGameStats } from '@/hooks/useGameStats';
+import { usePronunciation } from '@/hooks/usePronunciation';
 import { Confetti, LevelUpBanner, StreakPopup, FloatingXP } from '@/components/ui/GameEffects';
 
 type Difficulty = 'easy' | 'medium' | 'hard';
@@ -83,6 +84,7 @@ export default function FlashcardsPage() {
 
   const { play } = useSound();
   const { stats, recordCorrect, recordIncorrect, justLeveledUp, xpPercent } = useGameStats();
+  const { speak } = usePronunciation();
 
   useEffect(() => {
     (async () => {
@@ -399,15 +401,22 @@ export default function FlashcardsPage() {
             style={{ background: 'var(--bg-card)', borderColor: 'var(--border-color)', boxShadow: 'var(--shadow-card)' }}
           >
             <p className="text-xs font-black uppercase tracking-widest text-[var(--text-muted)] mb-5">🇹🇷 Turkish Word</p>
-            <p className="text-6xl font-black text-center mb-5" style={{ color: CATEGORY_COLORS[card.category] }}>
+            <p className="text-6xl font-black text-center mb-4" style={{ color: CATEGORY_COLORS[card.category] }}>
               {card.word}
             </p>
+            {/* 🔊 Speak button */}
+            <button
+              onClick={e => { e.stopPropagation(); speak(card.word); play('pop'); }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 18px', borderRadius: 20, border: `2px solid ${CATEGORY_COLORS[card.category]}55`, background: `${CATEGORY_COLORS[card.category]}15`, color: CATEGORY_COLORS[card.category], fontSize: 13, fontWeight: 800, cursor: 'pointer', marginBottom: 8 }}
+            >
+              🔊 Listen
+            </button>
             {card.sentence && (
               <p className="text-sm font-semibold text-[var(--text-muted)] italic text-center max-w-xs leading-relaxed">
                 &ldquo;…{card.sentence}…&rdquo;
               </p>
             )}
-            <p className="text-xs font-bold text-[var(--text-muted)] mt-6 opacity-50">👆 Tap to reveal</p>
+            <p className="text-xs font-bold text-[var(--text-muted)] mt-4 opacity-50">👆 Tap to reveal</p>
           </div>
 
           {/* Back */}
