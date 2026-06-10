@@ -189,9 +189,8 @@ export default function LibraryPage() {
                   background: 'var(--bg-card)',
                   border: `2px solid ${isCompleted ? '#10b98133' : 'var(--border-color)'}`,
                   borderRadius: 20,
-                  overflow: 'hidden',
                   position: 'relative',
-                  transition: 'all 0.2s',
+transition: 'all 0.2s',
                 }}
               >
                 {/* Cover */}
@@ -267,7 +266,7 @@ export default function LibraryPage() {
                           <>
                             <div onClick={() => setMenuOpen(null)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
                             <div style={{
-                              position: 'absolute', right: 0, top: '100%', zIndex: 20,
+                              position: 'fixed', zIndex: 9999,
                               background: 'var(--bg-card)',
                               border: '2px solid var(--border-color)',
                               borderRadius: 16,
