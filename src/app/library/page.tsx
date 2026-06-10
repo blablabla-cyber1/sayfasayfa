@@ -1,14 +1,17 @@
 'use client';
 import { useEffect, useState, useCallback } from 'react';
-import { Plus, Search, SlidersHorizontal, BookOpen, Bookmark } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import Link from 'next/link';
+import { Plus, Search, Bookmark, BookOpen, Clock, MoreVertical, Pencil, Trash2, BookmarkCheck } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { Story } from '@/types';
-import { StoryCard } from '@/components/library/StoryCard';
+import { Story, LEVEL_LABELS } from '@/types';
 import { UploadStoryModal } from '@/components/library/UploadStoryModal';
-import { Button } from '@/components/ui/Button';
-import { Input } from '@/components/ui/Input';
+import { estimateReadingTime, formatDate, truncate } from '@/lib/utils';
+import { useSound } from '@/hooks/useSound';
+import { useGameStats } from '@/hooks/useGameStats';
 
 export default function LibraryPage() {
+  const router = useRouter();
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -16,30 +19,27 @@ export default function LibraryPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [editStory, setEditStory] = useState<Story | null>(null);
   const [progress, setProgress] = useState<Record<string, number>>({});
+  const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const { play } = useSound();
+  const { addXP } = useGameStats();
 
   const fetchStories = useCallback(async () => {
     setLoading(true);
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
+    if (!user) { router.push('/auth/login'); return; }
 
-    const { data: storyData } = await supabase
-      .from('stories')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('updated_at', { ascending: false });
-
-    const { data: progressData } = await supabase
-      .from('reading_progress')
-      .select('story_id, progress_percent')
-      .eq('user_id', user.id);
+    const [{ data: storyData }, { data: progressData }] = await Promise.all([
+      supabase.from('stories').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }),
+      supabase.from('reading_progress').select('story_id, progress_percent').eq('user_id', user.id),
+    ]);
 
     setStories((storyData as Story[]) || []);
     const prog: Record<string, number> = {};
     progressData?.forEach(p => { prog[p.story_id] = p.progress_percent; });
     setProgress(prog);
     setLoading(false);
-  }, []);
+  }, [router]);
 
   useEffect(() => { fetchStories(); }, [fetchStories]);
 
@@ -48,105 +48,229 @@ export default function LibraryPage() {
     const supabase = createClient();
     await supabase.from('stories').delete().eq('id', id);
     setStories(prev => prev.filter(s => s.id !== id));
+    play('pop');
   };
 
-  const filteredStories = stories.filter(s => {
+  const handleBookmark = async (story: Story) => {
+    const supabase = createClient();
+    const newVal = !story.is_bookmarked;
+    await supabase.from('stories').update({ is_bookmarked: newVal }).eq('id', story.id);
+    setStories(prev => prev.map(s => s.id === story.id ? { ...s, is_bookmarked: newVal } : s));
+    play('click');
+  };
+
+  const filtered = stories.filter(s => {
     if (filterBookmarked && !s.is_bookmarked) return false;
-    if (search && !s.title.toLowerCase().includes(search.toLowerCase()) &&
-        !s.author?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !s.title.toLowerCase().includes(search.toLowerCase()) && !s.author?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
   return (
-    <div className="p-6 max-w-7xl mx-auto">
+    <div style={{ padding: '32px 32px 48px', maxWidth: 1200, margin: '0 auto' }}>
+
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 32, flexWrap: 'wrap', gap: 16 }}>
         <div>
-          <h1 className="text-3xl font-bold text-[var(--text-primary)]" style={{ fontFamily: 'Playfair Display, serif' }}>
-            My Library
+          <h1 style={{ fontSize: 32, fontWeight: 900, color: 'var(--text-primary)', margin: 0, lineHeight: 1.1 }}>
+            My Library 📚
           </h1>
-          <p className="text-[var(--text-muted)] text-sm mt-1">
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, fontWeight: 600, marginTop: 6 }}>
             {stories.length} {stories.length === 1 ? 'story' : 'stories'} in your collection
           </p>
         </div>
-        <Button onClick={() => setUploadOpen(true)} size="lg">
+        <button
+          onClick={() => { setUploadOpen(true); play('click'); }}
+          style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 16, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: 15, boxShadow: '0 4px 20px rgba(99,102,241,0.4)', transition: 'all 0.2s' }}
+          onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
+          onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
+        >
           <Plus size={18} /> Add Story
-        </Button>
+        </button>
       </div>
 
       {/* Filters */}
-      <div className="flex items-center gap-3 mb-6 flex-wrap">
-        <div className="flex-1 min-w-[200px] max-w-sm">
-          <Input
-            placeholder="Search stories…"
+      <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap', alignItems: 'center' }}>
+        <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 360 }}>
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <input
             value={search}
             onChange={e => setSearch(e.target.value)}
-            icon={<Search size={15} />}
+            placeholder="Search stories…"
+            style={{ width: '100%', paddingLeft: 38, paddingRight: 16, paddingTop: 10, paddingBottom: 10, borderRadius: 14, border: '2px solid var(--border-color)', background: 'var(--bg-card)', color: 'var(--text-primary)', fontSize: 14, fontWeight: 600, outline: 'none' }}
+            onFocus={e => (e.currentTarget.style.borderColor = '#6366f1')}
+            onBlur={e => (e.currentTarget.style.borderColor = 'var(--border-color)')}
           />
         </div>
-        <Button
-          variant={filterBookmarked ? 'primary' : 'outline'}
-          size="sm"
+        <button
           onClick={() => setFilterBookmarked(!filterBookmarked)}
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '10px 18px', borderRadius: 14, border: '2px solid', borderColor: filterBookmarked ? '#6366f1' : 'var(--border-color)', background: filterBookmarked ? '#6366f115' : 'var(--bg-card)', color: filterBookmarked ? '#6366f1' : 'var(--text-secondary)', fontWeight: 700, fontSize: 14, cursor: 'pointer', transition: 'all 0.15s' }}
         >
           <Bookmark size={14} /> Bookmarked
-        </Button>
+        </button>
       </div>
 
-      {/* Grid */}
+      {/* Stories grid */}
       {loading ? (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
           {Array.from({ length: 8 }).map((_, i) => (
-            <div key={i} className="rounded-xl overflow-hidden border border-[var(--border-color)]">
-              <div className="skeleton h-48" />
-              <div className="p-4 space-y-2">
-                <div className="skeleton h-5 w-3/4" />
-                <div className="skeleton h-4 w-1/2" />
-                <div className="skeleton h-12" />
+            <div key={i} style={{ borderRadius: 20, overflow: 'hidden', background: 'var(--bg-card)', border: '2px solid var(--border-color)' }}>
+              <div className="skeleton" style={{ height: 180 }} />
+              <div style={{ padding: 16, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                <div className="skeleton" style={{ height: 20, width: '75%' }} />
+                <div className="skeleton" style={{ height: 14, width: '50%' }} />
               </div>
             </div>
           ))}
         </div>
-      ) : filteredStories.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-center">
-          <div className="w-20 h-20 rounded-full bg-[var(--bg-secondary)] flex items-center justify-center mb-4">
-            <BookOpen size={32} className="text-[var(--text-muted)]" />
-          </div>
-          <h3 className="text-xl font-semibold mb-2" style={{ fontFamily: 'Playfair Display, serif' }}>
+      ) : filtered.length === 0 ? (
+        <div style={{ textAlign: 'center', padding: '80px 20px' }}>
+          <div style={{ fontSize: 64, marginBottom: 16 }}>📭</div>
+          <h3 style={{ fontSize: 22, fontWeight: 900, color: 'var(--text-primary)', marginBottom: 8 }}>
             {search || filterBookmarked ? 'No stories found' : 'Your library is empty'}
           </h3>
-          <p className="text-sm text-[var(--text-muted)] mb-6">
+          <p style={{ color: 'var(--text-muted)', fontSize: 14, fontWeight: 600, marginBottom: 24 }}>
             {search || filterBookmarked ? 'Try different filters' : 'Upload your first Turkish story to get started'}
           </p>
           {!search && !filterBookmarked && (
-            <Button onClick={() => setUploadOpen(true)}>
-              <Plus size={16} /> Add your first story
-            </Button>
+            <button
+              onClick={() => { setUploadOpen(true); play('click'); }}
+              style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 16, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: 15 }}
+            >
+              <Plus size={18} /> Add your first story
+            </button>
           )}
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5 animate-fade-in">
-          {filteredStories.map(story => (
-            <StoryCard
-              key={story.id}
-              story={story}
-              onEdit={(s) => { setEditStory(s); setUploadOpen(true); }}
-              onDelete={handleDelete}
-              onBookmarkToggle={(id, val) => setStories(prev => prev.map(s => s.id === id ? { ...s, is_bookmarked: val } : s))}
-              readingProgress={progress[story.id]}
-            />
-          ))}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
+          {filtered.map(story => {
+            const prog = progress[story.id];
+            return (
+              <div
+                key={story.id}
+                className="story-card"
+                style={{ background: 'var(--bg-card)', border: '2px solid var(--border-color)', borderRadius: 20, overflow: 'hidden', position: 'relative' }}
+              >
+                {/* Cover */}
+                <Link href={`/read/${story.id}`} style={{ display: 'block', textDecoration: 'none' }}>
+                  <div style={{ height: 180, background: 'linear-gradient(135deg,#6366f122,#8b5cf622)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
+                    {story.cover_image_url ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={story.cover_image_url} alt={story.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                    ) : (
+                      <BookOpen size={48} color="#6366f144" />
+                    )}
+                    {/* Progress bar */}
+                    {prog > 0 && (
+                      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, background: 'rgba(0,0,0,0.2)' }}>
+                        <div style={{ height: '100%', width: `${prog}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)' }} />
+                      </div>
+                    )}
+                    {/* Level badge */}
+                    {story.reading_level && (
+                      <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.65)', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 20, backdropFilter: 'blur(4px)' }}>
+                        {LEVEL_LABELS[story.reading_level]}
+                      </div>
+                    )}
+                    {/* Completed badge */}
+                    {prog > 95 && (
+                      <div style={{ position: 'absolute', top: 8, right: 8, background: '#10b981', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 20 }}>
+                        ✓ Done
+                      </div>
+                    )}
+                  </div>
+                </Link>
+
+                {/* Content */}
+                <div style={{ padding: '14px 16px 16px' }}>
+                  <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', gap: 8, marginBottom: 4 }}>
+                    <Link href={`/read/${story.id}`} style={{ textDecoration: 'none', flex: 1 }}>
+                      <h3 style={{ fontSize: 15, fontWeight: 900, color: 'var(--text-primary)', lineHeight: 1.3, margin: 0 }}>
+                        {story.title}
+                      </h3>
+                    </Link>
+                    {/* Actions */}
+                    <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
+                      <button onClick={() => handleBookmark(story)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, color: story.is_bookmarked ? '#f59e0b' : 'var(--text-muted)', transition: 'color 0.15s' }}>
+                        {story.is_bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
+                      </button>
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => setMenuOpen(menuOpen === story.id ? null : story.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, color: 'var(--text-muted)' }}
+                        >
+                          <MoreVertical size={16} />
+                        </button>
+                        {menuOpen === story.id && (
+                          <>
+                            <div onClick={() => setMenuOpen(null)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
+                            <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 20, background: 'var(--bg-card)', border: '2px solid var(--border-color)', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', padding: 6, minWidth: 130 }}>
+                              <button
+                                onClick={() => { setMenuOpen(null); setEditStory(story); setUploadOpen(true); play('click'); }}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700 }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                              >
+                                <Pencil size={13} /> Edit
+                              </button>
+                              <button
+                                onClick={() => { setMenuOpen(null); handleDelete(story.id); }}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, fontWeight: 700 }}
+                                onMouseEnter={e => (e.currentTarget.style.background = '#ef444415')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                              >
+                                <Trash2 size={13} /> Delete
+                              </button>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {story.author && (
+                    <p style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600, marginBottom: 6 }}>by {story.author}</p>
+                  )}
+
+                  {story.description && (
+                    <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginBottom: 8, lineHeight: 1.5, fontWeight: 500 }}>
+                      {truncate(story.description, 70)}
+                    </p>
+                  )}
+
+                  {/* Tags */}
+                  {story.tags.length > 0 && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginBottom: 8 }}>
+                      {story.tags.slice(0, 2).map(tag => (
+                        <span key={tag} style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 20, background: '#6366f115', color: '#6366f1' }}>{tag}</span>
+                      ))}
+                    </div>
+                  )}
+
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+                    {story.word_count > 0 && (
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                        <Clock size={11} /> {estimateReadingTime(story.word_count)}
+                      </span>
+                    )}
+                    <span>{formatDate(story.created_at)}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       <UploadStoryModal
         isOpen={uploadOpen}
         onClose={() => { setUploadOpen(false); setEditStory(null); }}
-        onSuccess={(story) => {
+        onSuccess={story => {
           if (editStory) {
             setStories(prev => prev.map(s => s.id === story.id ? story : s));
           } else {
             setStories(prev => [story, ...prev]);
+            addXP(20);
+            play('success');
           }
         }}
         editStory={editStory}
