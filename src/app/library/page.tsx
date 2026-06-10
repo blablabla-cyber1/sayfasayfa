@@ -2,7 +2,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Plus, Search, Bookmark, BookOpen, Clock, MoreVertical, Pencil, Trash2, BookmarkCheck } from 'lucide-react';
+import {
+  Plus, Search, Bookmark, BookOpen, Clock,
+  MoreVertical, Pencil, Trash2, BookmarkCheck, CheckCircle, Circle,
+} from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Story, LEVEL_LABELS } from '@/types';
 import { UploadStoryModal } from '@/components/library/UploadStoryModal';
@@ -19,6 +22,7 @@ export default function LibraryPage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [editStory, setEditStory] = useState<Story | null>(null);
   const [progress, setProgress] = useState<Record<string, number>>({});
+  const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
   const { play } = useSound();
   const { addXP } = useGameStats();
@@ -31,24 +35,30 @@ export default function LibraryPage() {
 
     const [{ data: storyData }, { data: progressData }] = await Promise.all([
       supabase.from('stories').select('*').eq('user_id', user.id).order('updated_at', { ascending: false }),
-      supabase.from('reading_progress').select('story_id, progress_percent').eq('user_id', user.id),
+      supabase.from('reading_progress').select('story_id, progress_percent, is_completed').eq('user_id', user.id),
     ]);
 
     setStories((storyData as Story[]) || []);
     const prog: Record<string, number> = {};
-    progressData?.forEach(p => { prog[p.story_id] = p.progress_percent; });
+    const comp: Record<string, boolean> = {};
+    progressData?.forEach(p => {
+      prog[p.story_id] = p.progress_percent;
+      comp[p.story_id] = p.is_completed;
+    });
     setProgress(prog);
+    setCompleted(comp);
     setLoading(false);
   }, [router]);
 
   useEffect(() => { fetchStories(); }, [fetchStories]);
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Delete this story?')) return;
+    if (!confirm('Delete this story? This cannot be undone.')) return;
     const supabase = createClient();
     await supabase.from('stories').delete().eq('id', id);
     setStories(prev => prev.filter(s => s.id !== id));
     play('pop');
+    setMenuOpen(null);
   };
 
   const handleBookmark = async (story: Story) => {
@@ -59,9 +69,34 @@ export default function LibraryPage() {
     play('click');
   };
 
+  const handleMarkCompleted = async (storyId: string) => {
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+
+    const isNowCompleted = !completed[storyId];
+    await supabase.from('reading_progress').upsert({
+      user_id: user.id,
+      story_id: storyId,
+      is_completed: isNowCompleted,
+      progress_percent: isNowCompleted ? 100 : (progress[storyId] || 0),
+      last_read_at: new Date().toISOString(),
+    }, { onConflict: 'user_id,story_id' });
+
+    setCompleted(prev => ({ ...prev, [storyId]: isNowCompleted }));
+    if (isNowCompleted) {
+      play('success');
+      addXP(50);
+    } else {
+      play('click');
+    }
+    setMenuOpen(null);
+  };
+
   const filtered = stories.filter(s => {
     if (filterBookmarked && !s.is_bookmarked) return false;
-    if (search && !s.title.toLowerCase().includes(search.toLowerCase()) && !s.author?.toLowerCase().includes(search.toLowerCase())) return false;
+    if (search && !s.title.toLowerCase().includes(search.toLowerCase()) &&
+        !s.author?.toLowerCase().includes(search.toLowerCase())) return false;
     return true;
   });
 
@@ -75,7 +110,7 @@ export default function LibraryPage() {
             My Library 📚
           </h1>
           <p style={{ color: 'var(--text-muted)', fontSize: 14, fontWeight: 600, marginTop: 6 }}>
-            {stories.length} {stories.length === 1 ? 'story' : 'stories'} in your collection
+            {stories.length} {stories.length === 1 ? 'story' : 'stories'} · {Object.values(completed).filter(Boolean).length} completed
           </p>
         </div>
         <button
@@ -91,7 +126,7 @@ export default function LibraryPage() {
       {/* Filters */}
       <div style={{ display: 'flex', gap: 12, marginBottom: 28, flexWrap: 'wrap', alignItems: 'center' }}>
         <div style={{ position: 'relative', flex: 1, minWidth: 200, maxWidth: 360 }}>
-          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+          <Search size={15} style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)', pointerEvents: 'none' }} />
           <input
             value={search}
             onChange={e => setSearch(e.target.value)}
@@ -109,7 +144,7 @@ export default function LibraryPage() {
         </button>
       </div>
 
-      {/* Stories grid */}
+      {/* Grid */}
       {loading ? (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
           {Array.from({ length: 8 }).map((_, i) => (
@@ -143,43 +178,58 @@ export default function LibraryPage() {
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: 20 }}>
           {filtered.map(story => {
-            const prog = progress[story.id];
+            const prog = progress[story.id] || 0;
+            const isCompleted = completed[story.id];
+
             return (
               <div
                 key={story.id}
                 className="story-card"
-                style={{ background: 'var(--bg-card)', border: '2px solid var(--border-color)', borderRadius: 20, overflow: 'hidden', position: 'relative' }}
+                style={{
+                  background: 'var(--bg-card)',
+                  border: `2px solid ${isCompleted ? '#10b98133' : 'var(--border-color)'}`,
+                  borderRadius: 20,
+                  overflow: 'hidden',
+                  position: 'relative',
+                  transition: 'all 0.2s',
+                }}
               >
                 {/* Cover */}
                 <Link href={`/read/${story.id}`} style={{ display: 'block', textDecoration: 'none' }}>
                   <div style={{ height: 180, background: 'linear-gradient(135deg,#6366f122,#8b5cf622)', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
                     {story.cover_image_url ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img 
-  src={story.cover_image_url} 
-  alt={story.title} 
-  style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-  onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
-/>
+                      <img
+                        src={story.cover_image_url}
+                        alt={story.title}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        onError={e => {
+                          (e.target as HTMLImageElement).style.display = 'none';
+                        }}
+                      />
                     ) : (
                       <BookOpen size={48} color="#6366f144" />
                     )}
+
                     {/* Progress bar */}
-                    {prog > 0 && (
+                    {prog > 0 && !isCompleted && (
                       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 4, background: 'rgba(0,0,0,0.2)' }}>
                         <div style={{ height: '100%', width: `${prog}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)' }} />
                       </div>
                     )}
+
                     {/* Level badge */}
                     {story.reading_level && (
                       <div style={{ position: 'absolute', top: 8, left: 8, background: 'rgba(0,0,0,0.65)', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 20, backdropFilter: 'blur(4px)' }}>
                         {LEVEL_LABELS[story.reading_level]}
                       </div>
                     )}
+
                     {/* Completed badge */}
-                    {prog > 95 && (
-                      <div style={{ position: 'absolute', top: 8, right: 8, background: '#10b981', color: 'white', fontSize: 10, fontWeight: 800, padding: '3px 8px', borderRadius: 20 }}>
-                        ✓ Done
+                    {isCompleted && (
+                      <div style={{ position: 'absolute', inset: 0, background: 'rgba(16,185,129,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ background: '#10b981', color: 'white', fontSize: 13, fontWeight: 900, padding: '6px 14px', borderRadius: 20, display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <CheckCircle size={14} /> Completed
+                        </div>
                       </div>
                     )}
                   </div>
@@ -193,11 +243,18 @@ export default function LibraryPage() {
                         {story.title}
                       </h3>
                     </Link>
-                    {/* Actions */}
+
+                    {/* Action buttons */}
                     <div style={{ display: 'flex', gap: 4, flexShrink: 0 }}>
-                      <button onClick={() => handleBookmark(story)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, color: story.is_bookmarked ? '#f59e0b' : 'var(--text-muted)', transition: 'color 0.15s' }}>
+                      <button
+                        onClick={() => handleBookmark(story)}
+                        title={story.is_bookmarked ? 'Remove bookmark' : 'Bookmark'}
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, color: story.is_bookmarked ? '#f59e0b' : 'var(--text-muted)', transition: 'color 0.15s' }}
+                      >
                         {story.is_bookmarked ? <BookmarkCheck size={16} /> : <Bookmark size={16} />}
                       </button>
+
+                      {/* More menu */}
                       <div style={{ position: 'relative' }}>
                         <button
                           onClick={() => setMenuOpen(menuOpen === story.id ? null : story.id)}
@@ -205,25 +262,55 @@ export default function LibraryPage() {
                         >
                           <MoreVertical size={16} />
                         </button>
+
                         {menuOpen === story.id && (
                           <>
                             <div onClick={() => setMenuOpen(null)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
-                            <div style={{ position: 'absolute', right: 0, top: '100%', zIndex: 20, background: 'var(--bg-card)', border: '2px solid var(--border-color)', borderRadius: 14, boxShadow: '0 8px 32px rgba(0,0,0,0.15)', padding: 6, minWidth: 130 }}>
+                            <div style={{
+                              position: 'absolute', right: 0, top: '100%', zIndex: 20,
+                              background: 'var(--bg-card)',
+                              border: '2px solid var(--border-color)',
+                              borderRadius: 16,
+                              boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                              padding: 6,
+                              minWidth: 170,
+                            }}>
+
+                              {/* Mark as completed */}
+                              <button
+                                onClick={() => handleMarkCompleted(story.id)}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: isCompleted ? '#f59e0b' : '#10b981', fontSize: 13, fontWeight: 700 }}
+                                onMouseEnter={e => (e.currentTarget.style.background = isCompleted ? '#f59e0b15' : '#10b98115')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                              >
+                                {isCompleted ? (
+                                  <><Circle size={14} /> Mark as unread</>
+                                ) : (
+                                  <><CheckCircle size={14} /> Mark as completed</>
+                                )}
+                              </button>
+
+                              {/* Edit */}
                               <button
                                 onClick={() => { setMenuOpen(null); setEditStory(story); setUploadOpen(true); play('click'); }}
-                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700 }}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700 }}
                                 onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
                                 onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                               >
-                                <Pencil size={13} /> Edit
+                                <Pencil size={14} /> Edit story
                               </button>
+
+                              {/* Divider */}
+                              <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
+
+                              {/* Delete */}
                               <button
-                                onClick={() => { setMenuOpen(null); handleDelete(story.id); }}
-                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, fontWeight: 700 }}
+                                onClick={() => handleDelete(story.id)}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, fontWeight: 700 }}
                                 onMouseEnter={e => (e.currentTarget.style.background = '#ef444415')}
                                 onMouseLeave={e => (e.currentTarget.style.background = 'none')}
                               >
-                                <Trash2 size={13} /> Delete
+                                <Trash2 size={14} /> Delete story
                               </button>
                             </div>
                           </>
@@ -251,13 +338,26 @@ export default function LibraryPage() {
                     </div>
                   )}
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
-                    {story.word_count > 0 && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-                        <Clock size={11} /> {estimateReadingTime(story.word_count)}
+                  {/* Footer */}
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 4 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>
+                      {story.word_count > 0 && (
+                        <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                          <Clock size={11} /> {estimateReadingTime(story.word_count)}
+                        </span>
+                      )}
+                      <span>{formatDate(story.created_at)}</span>
+                    </div>
+
+                    {/* Progress % */}
+                    {prog > 0 && !isCompleted && (
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#6366f1' }}>{Math.round(prog)}%</span>
+                    )}
+                    {isCompleted && (
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#10b981', display: 'flex', alignItems: 'center', gap: 3 }}>
+                        <CheckCircle size={11} /> Done
                       </span>
                     )}
-                    <span>{formatDate(story.created_at)}</span>
                   </div>
                 </div>
               </div>
