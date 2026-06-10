@@ -254,9 +254,13 @@ transition: 'all 0.2s',
                       </button>
 
                       {/* More menu */}
-                      <div style={{ position: 'relative' }}>
-                        <button
-                          onClick={() => setMenuOpen(menuOpen === story.id ? null : story.id)}
+                     <div
+  style={{ position: 'relative' }}
+  onMouseLeave={() => setMenuOpen(null)}
+>
+  <button
+    onClick={() => setMenuOpen(menuOpen === story.id ? null : story.id)}
+    onMouseEnter={() => setMenuOpen(story.id)}
                           style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, color: 'var(--text-muted)' }}
                         >
                           <MoreVertical size={16} />
