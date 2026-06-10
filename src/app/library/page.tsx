@@ -310,30 +310,7 @@ transition: 'all 0.2s',
   )}
 </div>
 
-                              {/* Mark as completed */}
-                              <button
-                                onClick={() => handleMarkCompleted(story.id)}
-                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: isCompleted ? '#f59e0b' : '#10b981', fontSize: 13, fontWeight: 700 }}
-                                onMouseEnter={e => (e.currentTarget.style.background = isCompleted ? '#f59e0b15' : '#10b98115')}
-                                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                              >
-                                {isCompleted ? (
-                                  <><Circle size={14} /> Mark as unread</>
-                                ) : (
-                                  <><CheckCircle size={14} /> Mark as completed</>
-                                )}
-                              </button>
-
-                              {/* Edit */}
-                              <button
-                                onClick={() => { setMenuOpen(null); setEditStory(story); setUploadOpen(true); play('click'); }}
-                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700 }}
-                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
-                                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-                              >
-                                <Pencil size={14} /> Edit story
-                              </button>
-
+                             
                               {/* Divider */}
                               <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
 
