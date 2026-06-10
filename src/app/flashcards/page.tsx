@@ -81,10 +81,28 @@ export default function FlashcardsPage() {
   const [showStreakPopup, setShowStreakPopup] = useState(false);
   const [floatingXP, setFloatingXP] = useState<{ id: number; amount: number; x: number; y: number } | null>(null);
   const [cardAnim, setCardAnim] = useState('');
+  const [arabicTranslation, setArabicTranslation] = useState('');
+  const [translating, setTranslating] = useState(false);
 
   const { play } = useSound();
   const { stats, recordCorrect, recordIncorrect, justLeveledUp, xpPercent } = useGameStats();
   const { speak } = usePronunciation();
+
+  useEffect(() => {
+    if (!started || !deck[current]) return;
+    const word = deck[current].word;
+    setArabicTranslation('');
+    setTranslating(true);
+    fetch(`https://api.mymemory.translated.net/get?q=${encodeURIComponent(word)}&langpair=tr|ar`)
+      .then(r => r.json())
+      .then(data => {
+        if (data.responseStatus === 200 && data.responseData?.translatedText) {
+          setArabicTranslation(data.responseData.translatedText);
+        }
+        setTranslating(false);
+      })
+      .catch(() => setTranslating(false));
+  }, [current, started, deck]);
 
   useEffect(() => {
     (async () => {
@@ -429,6 +447,17 @@ export default function FlashcardsPage() {
               <div className="space-y-2.5 flex-1">
                 <div className="text-center mb-1">
                   <span className="text-2xl font-black text-[var(--text-primary)]">{card.word}</span>
+                </div>
+                {/* Arabic translation */}
+                <div className="rounded-2xl p-3" style={{ background: 'linear-gradient(135deg,#6366f115,#8b5cf615)', border: '1.5px solid #6366f133' }}>
+                  <p className="text-xs font-black mb-1" style={{ color: '#6366f1' }}>🌍 الترجمة بالعربية</p>
+                  {translating ? (
+                    <p className="text-sm text-[var(--text-muted)]" style={{ direction: 'rtl', textAlign: 'right' }}>جاري الترجمة…</p>
+                  ) : arabicTranslation ? (
+                    <p className="text-lg font-bold" style={{ direction: 'rtl', textAlign: 'right', color: 'var(--text-primary)', fontFamily: 'system-ui, sans-serif' }}>{arabicTranslation}</p>
+                  ) : (
+                    <p className="text-sm italic text-[var(--text-muted)]">—</p>
+                  )}
                 </div>
                 {card.user_meaning && (
                   <div className="rounded-2xl p-3" style={{ background: 'var(--bg-secondary)' }}>
