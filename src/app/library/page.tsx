@@ -263,17 +263,49 @@ transition: 'all 0.2s',
                         </button>
 
                         {menuOpen === story.id && (
-                          <>
-                            <div onClick={() => setMenuOpen(null)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
-                            <div style={{
-                              position: 'fixed', zIndex: 9999,
-                              background: 'var(--bg-card)',
-                              border: '2px solid var(--border-color)',
-                              borderRadius: 16,
-                              boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
-                              padding: 6,
-                              minWidth: 170,
-                            }}>
+  <>
+    <div onClick={() => setMenuOpen(null)} style={{ position: 'fixed', inset: 0, zIndex: 100 }} />
+    <div style={{
+      position: 'absolute', right: 0, top: '100%', zIndex: 101,
+      background: 'var(--bg-card)',
+      border: '2px solid var(--border-color)',
+      borderRadius: 16,
+      boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
+      padding: 6,
+      minWidth: 170,
+    }}>
+      <button
+        onClick={() => handleMarkCompleted(story.id)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: isCompleted ? '#f59e0b' : '#10b981', fontSize: 13, fontWeight: 700 }}
+        onMouseEnter={e => (e.currentTarget.style.background = isCompleted ? '#f59e0b15' : '#10b98115')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+      >
+        {isCompleted ? (
+          <><Circle size={14} /> Mark as unread</>
+        ) : (
+          <><CheckCircle size={14} /> Mark as completed</>
+        )}
+      </button>
+      <button
+        onClick={() => { setMenuOpen(null); setEditStory(story); setUploadOpen(true); play('click'); }}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700 }}
+        onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+      >
+        <Pencil size={14} /> Edit story
+      </button>
+      <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
+      <button
+        onClick={() => handleDelete(story.id)}
+        style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, fontWeight: 700 }}
+        onMouseEnter={e => (e.currentTarget.style.background = '#ef444415')}
+        onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+      >
+        <Trash2 size={14} /> Delete story
+      </button>
+    </div>
+  </>
+)}
 
                               {/* Mark as completed */}
                               <button
