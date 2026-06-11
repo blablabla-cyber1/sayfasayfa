@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, X } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { Modal } from '@/components/ui/Modal';
@@ -37,6 +37,28 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
   const [tab, setTab]               = useState<'text' | 'file'>('text');
   const fileRef  = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
+
+  // Reload form fields whenever editStory changes
+  useEffect(() => {
+    if (editStory) {
+      setTitle(editStory.title || '');
+      setAuthor(editStory.author || '');
+      setDescription(editStory.description || '');
+      setTags(editStory.tags?.join(', ') || '');
+      setLevel(editStory.reading_level || '');
+      setCoverPreview(editStory.cover_image_url || '');
+    } else {
+      setTitle('');
+      setAuthor('');
+      setDescription('');
+      setTags('');
+      setLevel('');
+      setCoverPreview('');
+      setContent('');
+    }
+    setError('');
+    setCoverFile(null);
+  }, [editStory, isOpen]);
 
   const handleFileUpload = async (file: File) => {
     if (file.type === 'text/plain') {
@@ -139,8 +161,8 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
       title={editStory ? 'Edit Story' : 'Add Story'}
       size="lg"
     >
-     <form onSubmit={handleSubmit}>
-        <div className="p-6 space-y-5 overflow-y-auto">
+      <form onSubmit={handleSubmit}>
+        <div className="p-6 space-y-5">
 
           {/* Title + Author */}
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
