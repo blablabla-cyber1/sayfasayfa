@@ -7,7 +7,13 @@ const config: Config = {
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        serif: ["'Crimson Pro'", 'Georgia', 'serif'],
+        display: ["'Playfair Display'", 'Georgia', 'serif'],
+        mono: ["'JetBrains Mono'", 'monospace'],
+      },
+    },
   },
   plugins: [],
 };
