@@ -377,9 +377,10 @@ transition: 'all 0.2s',
         </div>
       )}
 
-      <UploadStoryModal
-        isOpen={uploadOpen}
-        onClose={() => { setUploadOpen(false); setEditStory(null); }}
+     <UploadStoryModal
+  key={editStory?.id || 'new'}
+  isOpen={uploadOpen}
+  onClose={() => { setUploadOpen(false); setEditStory(null); }}
         onSuccess={story => {
           if (editStory) {
             setStories(prev => prev.map(s => s.id === story.id ? story : s));
