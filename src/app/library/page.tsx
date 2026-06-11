@@ -20,11 +20,11 @@ export default function LibraryPage() {
   const [search, setSearch] = useState('');
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
-const [editStory, setEditStory] = useState<Story | null>(null);
-const [modalKey, setModalKey] = useState(0);
+  const [editStory, setEditStory] = useState<Story | null>(null);
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
+  const [modalKey, setModalKey] = useState(0);
   const { play } = useSound();
   const { addXP } = useGameStats();
 
@@ -115,7 +115,7 @@ const [modalKey, setModalKey] = useState(0);
           </p>
         </div>
         <button
-onClick={() => { setEditStory(null); setModalKey(k => k + 1); setUploadOpen(true); play('click'); }}      
+          onClick={() => { setEditStory(null); setModalKey(k => k + 1); setUploadOpen(true); play('click'); }}
           style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 16, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: 15, boxShadow: '0 4px 20px rgba(99,102,241,0.4)', transition: 'all 0.2s' }}
           onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
           onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
@@ -169,7 +169,7 @@ onClick={() => { setEditStory(null); setModalKey(k => k + 1); setUploadOpen(true
           </p>
           {!search && !filterBookmarked && (
             <button
-              onClick={() => { setUploadOpen(true); play('click'); }}
+              onClick={() => { setEditStory(null); setModalKey(k => k + 1); setUploadOpen(true); play('click'); }}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 16, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: 15 }}
             >
               <Plus size={18} /> Add your first story
@@ -190,8 +190,9 @@ onClick={() => { setEditStory(null); setModalKey(k => k + 1); setUploadOpen(true
                   background: 'var(--bg-card)',
                   border: `2px solid ${isCompleted ? '#10b98133' : 'var(--border-color)'}`,
                   borderRadius: 20,
+                  overflow: 'hidden',
                   position: 'relative',
-transition: 'all 0.2s',
+                  transition: 'all 0.2s',
                 }}
               >
                 {/* Cover */}
@@ -255,63 +256,51 @@ transition: 'all 0.2s',
                       </button>
 
                       {/* More menu */}
-<div style={{ position: 'relative' }}>
-  <button
-    onClick={() => setMenuOpen(menuOpen === story.id ? null : story.id)}
-    style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, color: 'var(--text-muted)' }}
-  >
-    <MoreVertical size={16} />
-  </button>
+                      <div style={{ position: 'relative' }}>
+                        <button
+                          onClick={() => setMenuOpen(menuOpen === story.id ? null : story.id)}
+                          style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 4, borderRadius: 8, color: 'var(--text-muted)' }}
+                        >
+                          <MoreVertical size={16} />
+                        </button>
 
-  {menuOpen === story.id && (
-    <>
-      {/* Invisible bridge to prevent gap */}
-      <div style={{ position: 'absolute', right: 0, top: '100%', height: 8, width: '100%', zIndex: 101 }} />
-      <div
-        onClick={e => e.stopPropagation()}
-        style={{
-          position: 'absolute', right: 0, top: 'calc(100% + 4px)', zIndex: 101,
-          background: 'var(--bg-card)',
-          border: '2px solid var(--border-color)',
-          borderRadius: 16,
-          boxShadow: '0 8px 32px rgba(0,0,0,0.2)',
-          padding: 6,
-          minWidth: 170,
-        }}
-      >
-        <button
-          onClick={() => handleMarkCompleted(story.id)}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: isCompleted ? '#f59e0b' : '#10b981', fontSize: 13, fontWeight: 700 }}
-          onMouseEnter={e => (e.currentTarget.style.background = isCompleted ? '#f59e0b15' : '#10b98115')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-        >
-          {isCompleted ? <><Circle size={14} /> Mark as unread</> : <><CheckCircle size={14} /> Mark as completed</>}
-        </button>
-        <button
-onClick={() => { setMenuOpen(null); setEditStory(story); setModalKey(k => k + 1); setUploadOpen(true); play('click'); }}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700 }}
-          onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-        >
-          <Pencil size={14} /> Edit story
-        </button>
-        <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
-        <button
-          onClick={() => handleDelete(story.id)}
-          style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: '#ef4444', fontSize: 13, fontWeight: 700 }}
-          onMouseEnter={e => (e.currentTarget.style.background = '#ef444415')}
-          onMouseLeave={e => (e.currentTarget.style.background = 'none')}
-        >
-          <Trash2 size={14} /> Delete story
-        </button>
-      </div>
-      {/* Click outside to close */}
-      <div onClick={() => setMenuOpen(null)} style={{ position: 'fixed', inset: 0, zIndex: 100 }} />
-    </>
-  )}
-</div>
+                        {menuOpen === story.id && (
+                          <>
+                            <div onClick={() => setMenuOpen(null)} style={{ position: 'fixed', inset: 0, zIndex: 10 }} />
+                            <div style={{
+                              position: 'absolute', right: 0, top: '100%', zIndex: 20,
+                              background: 'var(--bg-card)',
+                              border: '2px solid var(--border-color)',
+                              borderRadius: 16,
+                              boxShadow: '0 8px 32px rgba(0,0,0,0.15)',
+                              padding: 6,
+                              minWidth: 170,
+                            }}>
 
-                             
+                              {/* Mark as completed */}
+                              <button
+                                onClick={() => handleMarkCompleted(story.id)}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: isCompleted ? '#f59e0b' : '#10b981', fontSize: 13, fontWeight: 700 }}
+                                onMouseEnter={e => (e.currentTarget.style.background = isCompleted ? '#f59e0b15' : '#10b98115')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                              >
+                                {isCompleted ? (
+                                  <><Circle size={14} /> Mark as unread</>
+                                ) : (
+                                  <><CheckCircle size={14} /> Mark as completed</>
+                                )}
+                              </button>
+
+                              {/* Edit */}
+                              <button
+                                onClick={() => { setMenuOpen(null); setEditStory(story); setModalKey(k => k + 1); setUploadOpen(true); play('click'); }}
+                                style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700 }}
+                                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
+                                onMouseLeave={e => (e.currentTarget.style.background = 'none')}
+                              >
+                                <Pencil size={14} /> Edit story
+                              </button>
+
                               {/* Divider */}
                               <div style={{ height: 1, background: 'var(--border-color)', margin: '4px 0' }} />
 
@@ -378,10 +367,10 @@ onClick={() => { setMenuOpen(null); setEditStory(story); setModalKey(k => k + 1)
         </div>
       )}
 
-     <UploadStoryModal
-  key={editStory?.id || 'new'}
-  isOpen={uploadOpen}
-  onClose={() => { setUploadOpen(false); setEditStory(null); }}
+      <UploadStoryModal
+        key={modalKey}
+        isOpen={uploadOpen}
+        onClose={() => { setUploadOpen(false); setEditStory(null); }}
         onSuccess={story => {
           if (editStory) {
             setStories(prev => prev.map(s => s.id === story.id ? story : s));
