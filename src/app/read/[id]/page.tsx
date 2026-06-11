@@ -108,8 +108,7 @@ export default function ReadPage() {
 
   const contentRef    = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const saveTimeout   = useRef<ReturnType<typeof setTimeout>>(null);
-
+  const saveTimeout   = useRef<ReturnType<typeof setTimeout> | null>(undefined as unknown as ReturnType<typeof setTimeout> | null);
   const { speak } = usePronunciation();
 
   /* ── Load settings ── */
