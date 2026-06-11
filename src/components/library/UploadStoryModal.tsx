@@ -24,21 +24,20 @@ const inputCls =
 const labelCls = 'block text-sm font-medium text-[var(--text-secondary)] mb-1.5';
 
 export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: UploadStoryModalProps) {
-  const [title, setTitle]           = useState(editStory?.title || '');
-  const [author, setAuthor]         = useState(editStory?.author || '');
-  const [description, setDescription] = useState(editStory?.description || '');
-  const [tags, setTags]             = useState(editStory?.tags.join(', ') || '');
-  const [level, setLevel]           = useState<ReadingLevel | ''>(editStory?.reading_level || '');
-  const [content, setContent]       = useState('');
-  const [coverFile, setCoverFile]   = useState<File | null>(null);
-  const [coverPreview, setCoverPreview] = useState(editStory?.cover_image_url || '');
-  const [loading, setLoading]       = useState(false);
-  const [error, setError]           = useState('');
-  const [tab, setTab]               = useState<'text' | 'file'>('text');
+  // Initialize directly from editStory — key prop guarantees fresh mount each time
+  const [title, setTitle]               = useState(() => editStory?.title ?? '');
+  const [author, setAuthor]             = useState(() => editStory?.author ?? '');
+  const [description, setDescription]   = useState(() => editStory?.description ?? '');
+  const [tags, setTags]                 = useState(() => editStory?.tags?.join(', ') ?? '');
+  const [level, setLevel]               = useState<ReadingLevel | ''>(() => editStory?.reading_level ?? '');
+  const [content, setContent]           = useState('');
+  const [coverFile, setCoverFile]       = useState<File | null>(null);
+  const [coverPreview, setCoverPreview] = useState(() => editStory?.cover_image_url ?? '');
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState('');
+  const [tab, setTab]                   = useState<'text' | 'file'>('text');
   const fileRef  = useRef<HTMLInputElement>(null);
   const coverRef = useRef<HTMLInputElement>(null);
-
-
 
   const handleFileUpload = async (file: File) => {
     if (file.type === 'text/plain') {
@@ -67,7 +66,7 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
     if (!user) { setError('Not authenticated'); setLoading(false); return; }
 
     try {
-      let coverUrl = editStory?.cover_image_url || null;
+      let coverUrl = editStory?.cover_image_url ?? null;
 
       if (coverFile) {
         const ext = coverFile.name.split('.').pop();
@@ -84,15 +83,19 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
       }
 
       const tagList   = tags.split(',').map(t => t.trim()).filter(Boolean);
-      const wordCount = countWords(content || '');
+      const wordCount = content ? countWords(content) : (editStory?.word_count ?? 0);
 
       if (editStory) {
         const { data, error: err } = await supabase
           .from('stories')
           .update({
-            title, author: author || null, description: description || null,
-            tags: tagList, reading_level: level || null,
-            cover_image_url: coverUrl, word_count: wordCount,
+            title,
+            author: author || null,
+            description: description || null,
+            tags: tagList,
+            reading_level: level || null,
+            cover_image_url: coverUrl,
+            word_count: wordCount,
             updated_at: new Date().toISOString(),
           })
           .eq('id', editStory.id)
@@ -110,9 +113,13 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
         const { data, error: err } = await supabase
           .from('stories')
           .insert({
-            user_id: user.id, title, author: author || null,
-            description: description || null, tags: tagList,
-            reading_level: level || null, cover_image_url: coverUrl,
+            user_id: user.id,
+            title,
+            author: author || null,
+            description: description || null,
+            tags: tagList,
+            reading_level: level || null,
+            cover_image_url: coverUrl,
             word_count: wordCount,
           })
           .select()
@@ -120,7 +127,9 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
         if (err) throw err;
         if (content) {
           await supabase.from('story_content').insert({
-            story_id: (data as Story).id, content, content_format: 'text',
+            story_id: (data as Story).id,
+            content,
+            content_format: 'text',
           });
         }
         onSuccess(data as Story);
@@ -138,7 +147,7 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={editStory ? 'Edit Story' : 'Add Story'}
+      title={editStory ? `Edit — ${editStory.title}` : 'Add New Story'}
       size="lg"
     >
       <form onSubmit={handleSubmit}>
@@ -247,9 +256,11 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
             </div>
           </div>
 
-          {/* Content tabs */}
+          {/* Content */}
           <div>
-            <label className={labelCls}>Story Content</label>
+            <label className={labelCls}>
+              Story Content {editStory && <span className="text-[var(--text-muted)] font-normal">(leave empty to keep existing content)</span>}
+            </label>
             <div className="flex gap-2 mb-3">
               {(['text', 'file'] as const).map(t => (
                 <button
@@ -272,7 +283,7 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
                 className={`${inputCls} resize-none`}
                 value={content}
                 onChange={e => setContent(e.target.value)}
-                placeholder="Paste or type your Turkish story here…"
+                placeholder={editStory ? 'Leave empty to keep existing content, or paste new content to replace it…' : 'Paste or type your Turkish story here…'}
                 rows={8}
               />
             ) : (
@@ -287,10 +298,7 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
                   <div className="mt-3 flex items-center justify-center gap-2 text-sm text-[var(--accent-primary)]">
                     <FileText size={14} />
                     <span>Loaded — {countWords(content).toLocaleString()} words</span>
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); setContent(''); }}
-                    >
+                    <button type="button" onClick={e => { e.stopPropagation(); setContent(''); }}>
                       <X size={13} className="text-[var(--text-muted)]" />
                     </button>
                   </div>
@@ -312,7 +320,7 @@ export function UploadStoryModal({ isOpen, onClose, onSuccess, editStory }: Uplo
           )}
         </div>
 
-        {/* Footer — always visible at bottom of modal */}
+        {/* Footer */}
         <div className="flex justify-end gap-3 px-6 py-4 border-t border-[var(--border-color)] bg-[var(--bg-secondary)] rounded-b-2xl">
           <Button type="button" variant="ghost" onClick={onClose}>
             Cancel
