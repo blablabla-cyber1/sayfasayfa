@@ -20,7 +20,8 @@ export default function LibraryPage() {
   const [search, setSearch] = useState('');
   const [filterBookmarked, setFilterBookmarked] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
-  const [editStory, setEditStory] = useState<Story | null>(null);
+const [editStory, setEditStory] = useState<Story | null>(null);
+const [modalKey, setModalKey] = useState(0);
   const [progress, setProgress] = useState<Record<string, number>>({});
   const [completed, setCompleted] = useState<Record<string, boolean>>({});
   const [menuOpen, setMenuOpen] = useState<string | null>(null);
@@ -114,7 +115,7 @@ export default function LibraryPage() {
           </p>
         </div>
         <button
-          onClick={() => { setUploadOpen(true); play('click'); }}
+onClick={() => { setEditStory(null); setModalKey(k => k + 1); setUploadOpen(true); play('click'); }}      
           style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '12px 24px', borderRadius: 16, background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', color: 'white', border: 'none', cursor: 'pointer', fontWeight: 800, fontSize: 15, boxShadow: '0 4px 20px rgba(99,102,241,0.4)', transition: 'all 0.2s' }}
           onMouseEnter={e => (e.currentTarget.style.transform = 'translateY(-2px)')}
           onMouseLeave={e => (e.currentTarget.style.transform = 'translateY(0)')}
@@ -287,7 +288,7 @@ transition: 'all 0.2s',
           {isCompleted ? <><Circle size={14} /> Mark as unread</> : <><CheckCircle size={14} /> Mark as completed</>}
         </button>
         <button
-          onClick={() => { setMenuOpen(null); setEditStory(story); setUploadOpen(true); play('click'); }}
+onClick={() => { setMenuOpen(null); setEditStory(story); setModalKey(k => k + 1); setUploadOpen(true); play('click'); }}
           style={{ width: '100%', display: 'flex', alignItems: 'center', gap: 8, padding: '9px 12px', borderRadius: 10, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', fontSize: 13, fontWeight: 700 }}
           onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg-secondary)')}
           onMouseLeave={e => (e.currentTarget.style.background = 'none')}
