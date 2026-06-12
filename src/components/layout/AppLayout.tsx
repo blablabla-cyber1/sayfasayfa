@@ -2,7 +2,7 @@
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useState, useEffect } from 'react';
-import { BookOpen, LogOut, Sun, Moon, Menu, X, Zap, Trophy, Flame } from 'lucide-react';
+import { BookOpen, LogOut, Sun, Moon, Menu, X, Zap, Trophy, Flame, ChevronLeft } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useGameStats } from '@/hooks/useGameStats';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
@@ -34,16 +34,19 @@ const S = {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname  = usePathname();
   const router    = useRouter();
-  const [dark, setDark]             = useState(false);
-  const [mobileOpen, setMobileOpen] = useState(false);
-  const [helpOpen, setHelpOpen]     = useState(false);
-  const [isMobile, setIsMobile]     = useState(false);
+  const [dark, setDark]               = useState(false);
+  const [mobileOpen, setMobileOpen]   = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [helpOpen, setHelpOpen]       = useState(false);
+  const [isMobile, setIsMobile]       = useState(false);
   const { stats, xpPercent, justLeveledUp } = useGameStats();
   const { play } = useSound();
 
   useEffect(() => {
     const t = localStorage.getItem('sayfasayfa-theme') || 'light';
     setDark(t === 'dark');
+    const s = localStorage.getItem('sayfasayfa-sidebar');
+    if (s !== null) setSidebarOpen(s === 'true');
   }, []);
 
   useEffect(() => {
@@ -61,6 +64,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     play('click');
   };
 
+  const toggleSidebar = () => {
+    const next = !sidebarOpen;
+    setSidebarOpen(next);
+    localStorage.setItem('sayfasayfa-sidebar', String(next));
+    play('click');
+  };
+
   const signOut = async () => {
     await createClient().auth.signOut();
     router.push('/auth/login');
@@ -70,7 +80,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const SidebarContent = ({ mobile }: { mobile?: boolean }) => (
     <>
-      {/* Logo */}
+      {/* Logo + close button */}
       <div style={{ padding: '20px 16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Link href="/library" onClick={() => { setMobileOpen(false); play('click'); }}
           style={{ display: 'flex', alignItems: 'center', gap: 10, textDecoration: 'none' }}>
@@ -82,15 +92,17 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div style={{ color: S.sidebarText, fontSize: 11, marginTop: 3 }}>Turkish Reader</div>
           </div>
         </Link>
-        {/* X button — only on mobile sidebar */}
-        {mobile && (
-          <button
-            onClick={() => setMobileOpen(false)}
-            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', padding: 4 }}
-          >
-            <X size={18} />
-          </button>
-        )}
+
+        {/* Close button — X on mobile, ChevronLeft on desktop */}
+        <button
+          onClick={mobile ? () => setMobileOpen(false) : toggleSidebar}
+          title={mobile ? 'Close' : 'Hide sidebar'}
+          style={{ background: 'rgba(255,255,255,0.08)', border: 'none', cursor: 'pointer', color: 'white', padding: 6, borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', transition: 'background 0.15s' }}
+          onMouseEnter={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.18)')}
+          onMouseLeave={e => (e.currentTarget.style.background = 'rgba(255,255,255,0.08)')}
+        >
+          {mobile ? <X size={16} /> : <ChevronLeft size={16} />}
+        </button>
       </div>
 
       {/* XP bar */}
@@ -165,14 +177,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: dark ? S.mainBgDark : S.mainBg }}>
 
-      {/* ── DESKTOP sidebar — no X button ── */}
+      {/* ── DESKTOP sidebar ── */}
       {!isMobile && (
-        <aside style={{ width: 240, minWidth: 240, flexShrink: 0, background: S.sidebarBg, display: 'flex', flexDirection: 'column', height: '100vh', position: 'sticky', top: 0 }}>
+        <aside style={{
+          width: sidebarOpen ? 240 : 0,
+          minWidth: sidebarOpen ? 240 : 0,
+          flexShrink: 0,
+          background: S.sidebarBg,
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100vh',
+          position: 'sticky',
+          top: 0,
+          overflow: 'hidden',
+          transition: 'width 0.3s ease, min-width 0.3s ease',
+        }}>
           <SidebarContent mobile={false} />
         </aside>
       )}
 
-      {/* ── MOBILE sidebar overlay — with X button ── */}
+      {/* ── MOBILE sidebar overlay ── */}
       {isMobile && mobileOpen && (
         <>
           <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
@@ -184,6 +208,27 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
       {/* ── Main ── */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
+
+        {/* Desktop top bar — shown when sidebar is hidden */}
+        {!isMobile && !sidebarOpen && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '10px 16px', background: dark ? S.cardBgDark : S.cardBg, borderBottom: `1px solid ${dark ? S.borderDark : S.border}`, flexShrink: 0 }}>
+            <button
+              onClick={toggleSidebar}
+              title="Show sidebar"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: dark ? '#a8a5d0' : '#4c4980', padding: 6, borderRadius: 8, display: 'flex', alignItems: 'center', gap: 6 }}
+              onMouseEnter={e => (e.currentTarget.style.background = dark ? S.sidebarItem : S.border)}
+              onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
+            >
+              <Menu size={20} />
+              <span style={{ fontSize: 13, fontWeight: 700 }}>Menu</span>
+            </button>
+            <span style={{ fontWeight: 900, fontSize: 16, color: dark ? '#e8e6ff' : '#1e1b4b' }}>SayfaSayfa 📚</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Zap size={14} color="#f59e0b" />
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>Lv.{stats.level}</span>
+            </div>
+          </div>
+        )}
 
         {/* Mobile top bar */}
         {isMobile && (
