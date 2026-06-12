@@ -76,9 +76,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           </div>
         </Link>
    <button
-  onClick={() => <button onClick={() => setMobileOpen(false)} style={{ display: 'block', background: 'none', border: 'none', cursor: 'pointer', color: 'white', padding: 4 }} className="lg:hidden">
-  <X size={18} />
-</button>
+{typeof window !== 'undefined' && window.innerWidth < 1024 && (
+  <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', padding: 4 }}>
+    <X size={18} />
+  </button>
+)}
     
       </div>
 
