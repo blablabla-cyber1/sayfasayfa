@@ -328,7 +328,7 @@ export default function ReadPage() {
             <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700, marginRight: 4 }}>{Math.round(progress)}%</span>
 
             {/* Music player */}
-            <MusicPlayer />
+            <MusicPlayer storyId={id} />
 
             {/* Search */}
             <button onClick={() => { setShowSearch(s => !s); setTimeout(() => searchInputRef.current?.focus(), 50); }}
