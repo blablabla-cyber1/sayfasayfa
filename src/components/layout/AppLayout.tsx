@@ -34,15 +34,23 @@ const S = {
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname  = usePathname();
   const router    = useRouter();
-  const [dark, setDark]           = useState(false);
+  const [dark, setDark]             = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [helpOpen, setHelpOpen]   = useState(false);
+  const [helpOpen, setHelpOpen]     = useState(false);
+  const [isMobile, setIsMobile]     = useState(false);
   const { stats, xpPercent, justLeveledUp } = useGameStats();
   const { play } = useSound();
 
   useEffect(() => {
     const t = localStorage.getItem('sayfasayfa-theme') || 'light';
     setDark(t === 'dark');
+  }, []);
+
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 1024);
+    check();
+    window.addEventListener('resize', check);
+    return () => window.removeEventListener('resize', check);
   }, []);
 
   const toggleTheme = () => {
@@ -60,8 +68,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   useKeyboardShortcuts({ '?': () => setHelpOpen(h => !h) });
 
-  /* ── Sidebar JSX (shared between desktop + mobile) ── */
-  const SidebarContent = () => (
+  const SidebarContent = ({ mobile }: { mobile?: boolean }) => (
     <>
       {/* Logo */}
       <div style={{ padding: '20px 16px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
@@ -75,13 +82,15 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div style={{ color: S.sidebarText, fontSize: 11, marginTop: 3 }}>Turkish Reader</div>
           </div>
         </Link>
-   <button
-{typeof window !== 'undefined' && window.innerWidth < 1024 && (
-  <button onClick={() => setMobileOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', padding: 4 }}>
-    <X size={18} />
-  </button>
-)}
-    
+        {/* X button — only on mobile sidebar */}
+        {mobile && (
+          <button
+            onClick={() => setMobileOpen(false)}
+            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'white', padding: 4 }}
+          >
+            <X size={18} />
+          </button>
+        )}
       </div>
 
       {/* XP bar */}
@@ -122,7 +131,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         {/* Highlights legend */}
         <div style={{ padding: '14px 10px 0' }}>
           <p style={{ color: S.sidebarText, fontSize: 10, fontWeight: 800, letterSpacing: '0.1em', textTransform: 'uppercase', marginBottom: 10, opacity: 0.5 }}>Highlights</p>
-          {[{ color: '#f59e0b', label: 'Known but forgot' }, { color: '#ef4444', label: 'Unknown' }, { color: '#10b981', label: 'Personal note' }].map(c => (
+          {[
+            { color: '#f59e0b', label: 'Known but forgot' },
+            { color: '#ef4444', label: 'Unknown' },
+            { color: '#10b981', label: 'Personal note' },
+          ].map(c => (
             <div key={c.color} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: c.color, boxShadow: `0 0 6px ${c.color}88`, flexShrink: 0 }} />
               <span style={{ color: S.sidebarText, fontSize: 12 }}>{c.label}</span>
@@ -152,20 +165,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <div style={{ display: 'flex', height: '100vh', overflow: 'hidden', background: dark ? S.mainBgDark : S.mainBg }}>
 
-      {/* ── DESKTOP sidebar — always visible, takes real space ── */}
-      <aside
-        className="hidden lg:flex"
-        style={{ width: 240, minWidth: 240, flexShrink: 0, background: S.sidebarBg, flexDirection: 'column', height: '100vh', position: 'sticky', top: 0 }}
-      >
-        <SidebarContent />
-      </aside>
+      {/* ── DESKTOP sidebar — no X button ── */}
+      {!isMobile && (
+        <aside style={{ width: 240, minWidth: 240, flexShrink: 0, background: S.sidebarBg, display: 'flex', flexDirection: 'column', height: '100vh', position: 'sticky', top: 0 }}>
+          <SidebarContent mobile={false} />
+        </aside>
+      )}
 
-      {/* ── MOBILE sidebar overlay ── */}
-      {mobileOpen && (
+      {/* ── MOBILE sidebar overlay — with X button ── */}
+      {isMobile && mobileOpen && (
         <>
           <div onClick={() => setMobileOpen(false)} style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }} />
           <aside style={{ position: 'fixed', top: 0, left: 0, bottom: 0, width: 240, background: S.sidebarBg, display: 'flex', flexDirection: 'column', zIndex: 50, overflowY: 'auto' }}>
-            <SidebarContent />
+            <SidebarContent mobile={true} />
           </aside>
         </>
       )}
@@ -174,16 +186,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
 
         {/* Mobile top bar */}
-        <div className="flex lg:hidden" style={{ alignItems: 'center', gap: 12, padding: '12px 16px', background: dark ? S.cardBgDark : S.cardBg, borderBottom: `1px solid ${dark ? S.borderDark : S.border}`, flexShrink: 0 }}>
-          <button onClick={() => { setMobileOpen(true); play('click'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: dark ? '#a8a5d0' : '#4c4980', padding: 4 }}>
-            <Menu size={22} />
-          </button>
-          <span style={{ fontWeight: 900, fontSize: 16, color: dark ? '#e8e6ff' : '#1e1b4b' }}>SayfaSayfa 📚</span>
-          <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <Zap size={14} color="#f59e0b" />
-            <span style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>Lv.{stats.level}</span>
+        {isMobile && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: dark ? S.cardBgDark : S.cardBg, borderBottom: `1px solid ${dark ? S.borderDark : S.border}`, flexShrink: 0 }}>
+            <button onClick={() => { setMobileOpen(true); play('click'); }} style={{ background: 'none', border: 'none', cursor: 'pointer', color: dark ? '#a8a5d0' : '#4c4980', padding: 4 }}>
+              <Menu size={22} />
+            </button>
+            <span style={{ fontWeight: 900, fontSize: 16, color: dark ? '#e8e6ff' : '#1e1b4b' }}>SayfaSayfa 📚</span>
+            <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Zap size={14} color="#f59e0b" />
+              <span style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>Lv.{stats.level}</span>
+            </div>
           </div>
-        </div>
+        )}
 
         <main style={{ flex: 1, overflowY: 'auto' }}>{children}</main>
       </div>
