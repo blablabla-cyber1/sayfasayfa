@@ -16,6 +16,7 @@ import { WordPanel } from '@/components/reader/WordPanel';
 import { ReaderSettingsPanel } from '@/components/reader/ReaderSettingsPanel';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePronunciation } from '@/hooks/usePronunciation';
+import { MusicPlayer } from '@/components/reader/MusicPlayer';
 
 const DEFAULT_SETTINGS: ReaderSettings = {
   fontSize: 18,
@@ -109,6 +110,7 @@ export default function ReadPage() {
   const contentRef    = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const saveTimeout   = useRef<ReturnType<typeof setTimeout> | null>(undefined as unknown as ReturnType<typeof setTimeout> | null);
+
   const { speak } = usePronunciation();
 
   /* ── Load settings ── */
@@ -324,6 +326,9 @@ export default function ReadPage() {
           {/* Right */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
             <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700, marginRight: 4 }}>{Math.round(progress)}%</span>
+
+            {/* Music player */}
+            <MusicPlayer />
 
             {/* Search */}
             <button onClick={() => { setShowSearch(s => !s); setTimeout(() => searchInputRef.current?.focus(), 50); }}
