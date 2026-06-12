@@ -75,8 +75,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <div style={{ color: S.sidebarText, fontSize: 11, marginTop: 3 }}>Turkish Reader</div>
           </div>
         </Link>
-       <button onClick={() => setMobileOpen(false)}
-  style={{ display: 'block' }}
+   <button
+  onClick={() => setMobileOpen(false)}
+  style={{ display: 'none' }}
   className="lg:hidden"
          style={{ display: 'block', background: 'none', border: 'none', cursor: 'pointer', color: 'white', padding: 4 }} className="lg:hidden">
           <X size={18} />
