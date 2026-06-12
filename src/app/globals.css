@@ -87,6 +87,7 @@ h1, h2, h3 {
   border-bottom: 2px solid var(--color-forgot);
   cursor: pointer; border-radius: 3px; padding: 0 2px;
   transition: background-color 0.15s;
+  color: inherit;
 }
 .highlight-forgot:hover { background-color: #f59e0b33; }
 
@@ -95,6 +96,7 @@ h1, h2, h3 {
   border-bottom: 2px solid var(--color-unknown);
   cursor: pointer; border-radius: 3px; padding: 0 2px;
   transition: background-color 0.15s;
+  color: inherit;
 }
 .highlight-unknown:hover { background-color: #ef444433; }
 
@@ -103,14 +105,15 @@ h1, h2, h3 {
   border-bottom: 2px solid var(--color-note);
   cursor: pointer; border-radius: 3px; padding: 0 2px;
   transition: background-color 0.15s;
+  color: inherit;
 }
 .highlight-note:hover { background-color: #10b98133; }
 
-/* ── Scrollbar ── */
-::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: var(--border-color); border-radius: 3px; }
-::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+[data-theme="dark"] .highlight-forgot,
+[data-theme="dark"] .highlight-unknown,
+[data-theme="dark"] .highlight-note {
+  color: #f0ebe4;
+}
 
 /* ── Reader ── */
 .reader-content {
