@@ -305,7 +305,7 @@ export default function ReadPage() {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--reader-bg)' }}>
 
       {/* ── Top bar ── */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 30, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-color)' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 30, background: settings.darkMode ? 'rgba(20,18,31,0.95)' : 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-color)' }}>
         {/* Progress bar */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'var(--border-color)' }}>
           <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', transition: 'width 0.5s' }} />
@@ -318,8 +318,8 @@ export default function ReadPage() {
               <ArrowLeft size={18} />
             </Link>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 900, fontSize: 14, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{story?.title}</div>
-              {story?.author && <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{story.author}</div>}
+              <div style={{ fontWeight: 900, fontSize: 14, color: settings.darkMode ? '#f0ebe4' : '#1e1b4b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{story?.title}</div>
+              {story?.author && <div style={{ fontSize: 12, color: settings.darkMode ? '#8b88b0' : '#9c9590', fontWeight: 600 }}>{story.author}</div>}
             </div>
           </div>
 
