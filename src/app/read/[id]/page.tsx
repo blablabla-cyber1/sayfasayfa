@@ -110,6 +110,7 @@ export default function ReadPage() {
   const contentRef    = useRef<HTMLDivElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const saveTimeout   = useRef<ReturnType<typeof setTimeout> | null>(undefined as unknown as ReturnType<typeof setTimeout> | null);
+  const progressRef   = useRef(0); // tracks progress without triggering re-renders
 
   const { speak } = usePronunciation();
 
@@ -151,7 +152,10 @@ export default function ReadPage() {
       setAllWords(words);
       setStoryWords(words.filter(w => w.story_id === id));
       setBookmarks((bookmarkData as { id: string; position: number; label: string | null }[]) || []);
-      if (progressData) setProgress(progressData.progress_percent ?? 0);
+      if (progressData) {
+        setProgress(progressData.progress_percent ?? 0);
+        progressRef.current = progressData.progress_percent ?? 0;
+      }
 
       if (progressData?.scroll_position && contentRef.current) {
         setTimeout(() => {
@@ -167,30 +171,30 @@ export default function ReadPage() {
 
   /* ── Scroll / progress ── */
   const handleScroll = useCallback(() => {
-  const el = contentRef.current;
-  if (!el) return;
+    const el = contentRef.current;
+    if (!el) return;
 
-  // If already completed, don't recalculate
-  if (progress >= 100) return;
+    // Stop all updates if already completed
+    if (progressRef.current >= 100) return;
 
-  const pct = Math.min((el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1)) * 100, 100);
-  setProgress(pct);
+    const pct = Math.min((el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1)) * 100, 100);
+    progressRef.current = pct;
+    setProgress(pct);
+
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
     saveTimeout.current = setTimeout(async () => {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-     // Don't overwrite progress if story was manually marked as completed
-const currentCompleted = pct > 95;
-const keepCompleted = progress >= 100;
-
-await supabase.from('reading_progress').upsert({
-  user_id: user.id, story_id: id,
-  scroll_position: el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1),
-  progress_percent: keepCompleted ? 100 : pct,
-  is_completed: keepCompleted || currentCompleted,
-  last_read_at: new Date().toISOString(),
-}, { onConflict: 'user_id,story_id' });
+      await supabase.from('reading_progress').upsert({
+        user_id: user.id, story_id: id,
+        scroll_position: el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1),
+        progress_percent: pct,
+        is_completed: pct > 95,
+        last_read_at: new Date().toISOString(),
+      }, { onConflict: 'user_id,story_id' });
+    }, 2000);
+  }, [id]);
 
   /* ── Text selection ── */
   const handleMouseUp = useCallback(() => {
@@ -308,10 +312,10 @@ await supabase.from('reading_progress').upsert({
   }
 
   return (
-<div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--reader-bg)', overflow: 'hidden' }}>
-  
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--reader-bg)' }}>
+
       {/* ── Top bar ── */}
-      <div style={{ position: 'sticky', top: 0, zIndex: 30, background: settings.darkMode ? 'rgba(20,18,31,0.95)' : 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-color)' }}>
+      <div style={{ position: 'sticky', top: 0, zIndex: 30, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-color)' }}>
         {/* Progress bar */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'var(--border-color)' }}>
           <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', transition: 'width 0.5s' }} />
@@ -324,8 +328,8 @@ await supabase.from('reading_progress').upsert({
               <ArrowLeft size={18} />
             </Link>
             <div style={{ minWidth: 0 }}>
-              <div style={{ fontWeight: 900, fontSize: 14, color: settings.darkMode ? '#f0ebe4' : '#1e1b4b', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{story?.title}</div>
-              {story?.author && <div style={{ fontSize: 12, color: settings.darkMode ? '#8b88b0' : '#9c9590', fontWeight: 600 }}>{story.author}</div>}
+              <div style={{ fontWeight: 900, fontSize: 14, color: 'var(--text-primary)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{story?.title}</div>
+              {story?.author && <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{story.author}</div>}
             </div>
           </div>
 
@@ -415,8 +419,8 @@ await supabase.from('reading_progress').upsert({
       </div>
 
       {/* ── Reader body ── */}
-<div ref={contentRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0 }} onScroll={handleScroll} onMouseUp={handleMouseUp}>
-  <div style={{ maxWidth: fullscreen ? 620 : 720, margin: '0 auto', padding: '40px 24px 80px' }}>
+      <div ref={contentRef} style={{ flex: 1, overflowY: 'auto' }} onScroll={handleScroll} onMouseUp={handleMouseUp}>
+        <div style={{ maxWidth: fullscreen ? 620 : 720, margin: '0 auto', padding: '40px 24px 80px' }}>
 
           {/* Hint bar */}
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 28, padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 14, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
