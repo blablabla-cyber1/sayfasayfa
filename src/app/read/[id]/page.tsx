@@ -302,8 +302,8 @@ export default function ReadPage() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--reader-bg)' }}>
-
+<div style={{ height: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--reader-bg)', overflow: 'hidden' }}>
+  
       {/* ── Top bar ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 30, background: settings.darkMode ? 'rgba(20,18,31,0.95)' : 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-color)' }}>
         {/* Progress bar */}
@@ -409,8 +409,8 @@ export default function ReadPage() {
       </div>
 
       {/* ── Reader body ── */}
-      <div ref={contentRef} style={{ flex: 1, overflowY: 'auto' }} onScroll={handleScroll} onMouseUp={handleMouseUp}>
-        <div style={{ maxWidth: fullscreen ? 620 : 720, margin: '0 auto', padding: '40px 24px 80px' }}>
+<div ref={contentRef} style={{ flex: 1, overflowY: 'auto', minHeight: 0 }} onScroll={handleScroll} onMouseUp={handleMouseUp}>
+  <div style={{ maxWidth: fullscreen ? 620 : 720, margin: '0 auto', padding: '40px 24px 80px' }}>
 
           {/* Hint bar */}
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 28, padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 14, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
