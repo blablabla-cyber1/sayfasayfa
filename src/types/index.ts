@@ -62,6 +62,7 @@ export interface HighlightedWord {
   user_note: string | null;
   user_meaning: string | null;
   user_translation: string | null;
+  user_image_url: string | null;
   is_favorite: boolean;
   created_at: string;
   updated_at: string;
