@@ -176,15 +176,17 @@ export default function ReadPage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
-      await supabase.from('reading_progress').upsert({
-        user_id: user.id, story_id: id,
-        scroll_position: el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1),
-        progress_percent: pct,
-        is_completed: pct > 95,
-        last_read_at: new Date().toISOString(),
-      }, { onConflict: 'user_id,story_id' });
-    }, 2000);
-  }, [id]);
+     // Don't overwrite progress if story was manually marked as completed
+const currentCompleted = pct > 95;
+const keepCompleted = progress >= 100;
+
+await supabase.from('reading_progress').upsert({
+  user_id: user.id, story_id: id,
+  scroll_position: el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1),
+  progress_percent: keepCompleted ? 100 : pct,
+  is_completed: keepCompleted || currentCompleted,
+  last_read_at: new Date().toISOString(),
+}, { onConflict: 'user_id,story_id' });
 
   /* ── Text selection ── */
   const handleMouseUp = useCallback(() => {
