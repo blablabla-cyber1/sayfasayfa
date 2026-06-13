@@ -1,5 +1,5 @@
 'use client';
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import Link from 'next/link';
 import {
   RotateCcw, ArrowRight, CheckCircle, XCircle,
@@ -27,37 +27,126 @@ function shuffle<T>(arr: T[]): T[] {
 
 function EditMeaningModal({ word, onSave, onClose }: {
   word: HighlightedWord;
-  onSave: (meaning: string, translation: string, note: string) => void;
+  onSave: (meaning: string, translation: string, note: string, imageUrl: string | null) => void;
   onClose: () => void;
 }) {
-  const [meaning, setMeaning] = useState(word.user_meaning || '');
+  const [meaning, setMeaning]         = useState(word.user_meaning || '');
   const [translation, setTranslation] = useState(word.user_translation || '');
-  const [note, setNote] = useState(word.user_note || '');
+  const [note, setNote]               = useState(word.user_note || '');
+  const [imagePreview, setImagePreview] = useState(word.user_image_url || '');
+  const [imageFile, setImageFile]     = useState<File | null>(null);
+  const [uploading, setUploading]     = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
   const inputCls = 'w-full px-4 py-3 rounded-2xl border-2 border-[var(--border-color)] bg-[var(--bg-secondary)] text-sm text-[var(--text-primary)] placeholder:text-[var(--text-muted)] focus:outline-none focus:border-[var(--accent-primary)] transition-all font-semibold';
+
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
+
+  const handleSave = async () => {
+    setUploading(true);
+    let imageUrl = word.user_image_url || null;
+
+    if (imageFile) {
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        const ext = imageFile.name.split('.').pop();
+        const path = `word-images/${user.id}/${Date.now()}.${ext}`;
+        const { error } = await supabase.storage.from('story-covers').upload(path, imageFile, { upsert: true });
+        if (!error) {
+          const { data: { publicUrl } } = supabase.storage.from('story-covers').getPublicUrl(path);
+          imageUrl = publicUrl;
+        }
+      }
+    }
+
+    if (!imageFile && !imagePreview) imageUrl = null;
+
+    setUploading(false);
+    onSave(meaning, translation, note, imageUrl);
+  };
 
   return (
     <div onClick={onClose} style={{ position: 'fixed', inset: 0, zIndex: 9999, backgroundColor: 'rgba(0,0,0,0.7)', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16 }}>
-      <div onClick={e => e.stopPropagation()} className="bg-[var(--bg-card)] rounded-3xl shadow-2xl w-full max-w-md border-2 border-[var(--border-color)]">
-        <div className="flex items-center justify-between px-6 py-5 border-b-2 border-[var(--border-color)]">
-          <h2 className="text-lg font-black text-[var(--text-primary)]">✏️ Add meaning for &ldquo;{word.word}&rdquo;</h2>
-          <button onClick={onClose} className="text-[var(--text-muted)] hover:text-[var(--text-primary)] p-1.5 rounded-xl hover:bg-[var(--bg-secondary)]"><X size={18} /></button>
+      <div onClick={e => e.stopPropagation()} style={{ background: 'var(--bg-card)', borderRadius: 24, boxShadow: '0 24px 64px rgba(0,0,0,0.3)', width: '100%', maxWidth: 480, border: '2px solid var(--border-color)', maxHeight: '90vh', overflowY: 'auto' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px 24px', borderBottom: '2px solid var(--border-color)' }}>
+          <h2 style={{ fontSize: 16, fontWeight: 900, color: 'var(--text-primary)', margin: 0 }}>✏️ Edit &ldquo;{word.word}&rdquo;</h2>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', padding: 4 }}><X size={18} /></button>
         </div>
-        <div className="p-6 space-y-4">
+
+        <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 16 }}>
+          {/* Meaning */}
           <div>
-            <label className="block text-sm font-bold text-[var(--text-secondary)] mb-2">📖 Meaning</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>📖 Meaning</label>
             <input className={inputCls} value={meaning} onChange={e => setMeaning(e.target.value)} placeholder="Turkish meaning or definition…" />
           </div>
+
+          {/* Translation */}
           <div>
-            <label className="block text-sm font-bold text-[var(--text-secondary)] mb-2">🌍 Translation</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>🌍 Translation</label>
             <input className={inputCls} value={translation} onChange={e => setTranslation(e.target.value)} placeholder="In your language…" />
           </div>
+
+          {/* Note */}
           <div>
-            <label className="block text-sm font-bold text-[var(--text-secondary)] mb-2">📝 Note</label>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>📝 Note</label>
             <textarea className={`${inputCls} resize-none`} value={note} onChange={e => setNote(e.target.value)} placeholder="Memory trick or usage notes…" rows={2} />
           </div>
-          <div className="flex justify-end gap-3 pt-2">
-            <button onClick={onClose} className="px-4 py-2 rounded-xl font-bold text-sm text-[var(--text-muted)] hover:bg-[var(--bg-secondary)]">Cancel</button>
-            <button onClick={() => onSave(meaning, translation, note)} className="px-6 py-2 rounded-xl font-black text-sm text-white" style={{ background: 'linear-gradient(135deg, #6366f1, #8b5cf6)' }}>Save ✓</button>
+
+          {/* Image upload */}
+          <div>
+            <label style={{ display: 'block', fontSize: 13, fontWeight: 700, color: 'var(--text-secondary)', marginBottom: 8 }}>🖼️ Image (shown on card back)</label>
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleImageChange} style={{ display: 'none' }} />
+
+            {imagePreview ? (
+              <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border-color)' }}>
+                <img src={imagePreview} alt="Card image" style={{ width: '100%', maxHeight: 200, objectFit: 'cover', display: 'block' }} />
+                <div style={{ position: 'absolute', top: 8, right: 8, display: 'flex', gap: 6 }}>
+                  <button
+                    onClick={() => fileRef.current?.click()}
+                    style={{ padding: '5px 10px', borderRadius: 10, background: 'rgba(0,0,0,0.6)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700, backdropFilter: 'blur(4px)' }}
+                  >
+                    Change
+                  </button>
+                  <button
+                    onClick={() => { setImagePreview(''); setImageFile(null); }}
+                    style={{ padding: '5px 10px', borderRadius: 10, background: 'rgba(239,68,68,0.8)', color: 'white', border: 'none', cursor: 'pointer', fontSize: 12, fontWeight: 700 }}
+                  >
+                    Remove
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => fileRef.current?.click()}
+                style={{ width: '100%', padding: '24px 16px', borderRadius: 16, border: '2px dashed var(--border-color)', background: 'none', cursor: 'pointer', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8, transition: 'all 0.15s' }}
+                onMouseEnter={e => { (e.currentTarget.style.borderColor = '#6366f1'); (e.currentTarget.style.background = '#6366f108'); }}
+                onMouseLeave={e => { (e.currentTarget.style.borderColor = 'var(--border-color)'); (e.currentTarget.style.background = 'none'); }}
+              >
+                <span style={{ fontSize: 28 }}>🖼️</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)' }}>Click to upload an image</span>
+                <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>JPG, PNG, WebP — appears on card back</span>
+              </button>
+            )}
+          </div>
+
+          {/* Buttons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, paddingTop: 4 }}>
+            <button onClick={onClose} style={{ padding: '10px 18px', borderRadius: 14, fontWeight: 700, fontSize: 13, color: 'var(--text-muted)', background: 'none', border: '2px solid var(--border-color)', cursor: 'pointer' }}>
+              Cancel
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={uploading}
+              style={{ padding: '10px 24px', borderRadius: 14, fontWeight: 900, fontSize: 13, color: 'white', background: 'linear-gradient(135deg,#6366f1,#8b5cf6)', border: 'none', cursor: 'pointer', opacity: uploading ? 0.7 : 1 }}
+            >
+              {uploading ? 'Uploading…' : 'Save ✓'}
+            </button>
           </div>
         </div>
       </div>
@@ -186,11 +275,13 @@ export default function FlashcardsPage() {
     }, 400);
   };
 
-  const handleSaveMeaning = async (meaning: string, translation: string, note: string) => {
+  const handleSaveMeaning = async (meaning: string, translation: string, note: string, imageUrl: string | null) => {
     if (!editWord) return;
     play('pop');
     const supabase = createClient();
-    const { data } = await supabase.from('highlighted_words').update({ user_meaning: meaning, user_translation: translation, user_note: note }).eq('id', editWord.id).select().single();
+    const { data } = await supabase.from('highlighted_words')
+      .update({ user_meaning: meaning, user_translation: translation, user_note: note, user_image_url: imageUrl })
+      .eq('id', editWord.id).select().single();
     if (data) {
       const updated = data as HighlightedWord;
       setWords(prev => prev.map(w => w.id === updated.id ? updated : w));
@@ -448,6 +539,16 @@ export default function FlashcardsPage() {
                 <div className="text-center mb-1">
                   <span className="text-2xl font-black text-[var(--text-primary)]">{card.word}</span>
                 </div>
+                {/* User image */}
+                {card.user_image_url && (
+                  <div style={{ borderRadius: 14, overflow: 'hidden', border: '2px solid var(--border-color)' }}>
+                    <img
+                      src={card.user_image_url}
+                      alt={card.word}
+                      style={{ width: '100%', maxHeight: 140, objectFit: 'cover', display: 'block' }}
+                    />
+                  </div>
+                )}
                 {/* Arabic translation */}
                 <div className="rounded-2xl p-3" style={{ background: 'linear-gradient(135deg,#6366f115,#8b5cf615)', border: '1.5px solid #6366f133' }}>
                   <p className="text-xs font-black mb-1" style={{ color: '#6366f1' }}>🌍 الترجمة بالعربية</p>
