@@ -167,10 +167,14 @@ export default function ReadPage() {
 
   /* ── Scroll / progress ── */
   const handleScroll = useCallback(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const pct = Math.min((el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1)) * 100, 100);
-    setProgress(pct);
+  const el = contentRef.current;
+  if (!el) return;
+
+  // If already completed, don't recalculate
+  if (progress >= 100) return;
+
+  const pct = Math.min((el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1)) * 100, 100);
+  setProgress(pct);
     if (saveTimeout.current) clearTimeout(saveTimeout.current);
     saveTimeout.current = setTimeout(async () => {
       const supabase = createClient();
