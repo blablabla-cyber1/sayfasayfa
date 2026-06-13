@@ -539,16 +539,24 @@ export default function FlashcardsPage() {
                 <div className="text-center mb-1">
                   <span className="text-2xl font-black text-[var(--text-primary)]">{card.word}</span>
                 </div>
-                {/* User image */}
-                {card.user_image_url && (
-                  <div style={{ borderRadius: 14, overflow: 'hidden', border: '2px solid var(--border-color)' }}>
-                    <img
-                      src={card.user_image_url}
-                      alt={card.word}
-                      style={{ width: '100%', maxHeight: 140, objectFit: 'cover', display: 'block' }}
-                    />
-                  </div>
-                )}
+                {/* User image — shown at bottom in square shape */}
+{card.user_image_url && (
+  <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+    <div style={{
+      width: 120, height: 120,
+      borderRadius: 16,
+      overflow: 'hidden',
+      border: '2px solid var(--border-color)',
+      flexShrink: 0,
+    }}>
+      <img
+        src={card.user_image_url}
+        alt={card.word}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+      />
+    </div>
+  </div>
+)}
                 {/* Arabic translation */}
                 <div className="rounded-2xl p-3" style={{ background: 'linear-gradient(135deg,#6366f115,#8b5cf615)', border: '1.5px solid #6366f133' }}>
                   <p className="text-xs font-black mb-1" style={{ color: '#6366f1' }}>🌍 الترجمة بالعربية</p>
