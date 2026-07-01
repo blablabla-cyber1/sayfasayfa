@@ -224,8 +224,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
             <span style={{ fontWeight: 900, fontSize: 16, color: dark ? '#e8e6ff' : '#1e1b4b' }}>SayfaSayfa 📚</span>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Zap size={14} color="#f59e0b" />
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>Lv.{stats.level}</span>
+             <Flame size={14} color="#ef4444" />
+<span style={{ fontSize: 13, fontWeight: 800, color: '#ef4444' }}>{stats.currentStreak} streak</span>
             </div>
           </div>
         )}
@@ -238,8 +238,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </button>
             <span style={{ fontWeight: 900, fontSize: 16, color: dark ? '#e8e6ff' : '#1e1b4b' }}>SayfaSayfa 📚</span>
             <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: 6 }}>
-              <Zap size={14} color="#f59e0b" />
-              <span style={{ fontSize: 13, fontWeight: 800, color: '#f59e0b' }}>Lv.{stats.level}</span>
+             <Flame size={14} color="#ef4444" />
+<span style={{ fontSize: 13, fontWeight: 800, color: '#ef4444' }}>{stats.currentStreak} streak</span>
             </div>
           </div>
         )}
