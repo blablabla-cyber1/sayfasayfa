@@ -63,6 +63,9 @@ export interface HighlightedWord {
   user_meaning: string | null;
   user_translation: string | null;
   user_image_url: string | null;
+  auto_image_url: string | null;
+english_meaning: string | null;
+example_sentence_2: string | null;
   is_favorite: boolean;
   created_at: string;
   updated_at: string;
