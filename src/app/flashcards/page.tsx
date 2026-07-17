@@ -557,6 +557,35 @@ export default function FlashcardsPage() {
     </div>
   </div>
 )}
+                {/* Auto-fetched image — only shown if user hasn't uploaded their own */}
+{!card.user_image_url && card.auto_image_url && (
+  <div style={{ display: 'flex', justifyContent: 'center', marginTop: 4 }}>
+    <div style={{ width: 120, height: 120, borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border-color)', flexShrink: 0 }}>
+      <img
+        src={card.auto_image_url}
+        alt={card.english_meaning || card.word}
+        style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }}
+      />
+    </div>
+  </div>
+)}
+
+{/* English meaning */}
+{card.english_meaning && (
+  <div className="rounded-2xl p-3" style={{ background: 'var(--bg-secondary)' }}>
+    <p className="text-xs font-black text-[var(--text-muted)] mb-1">🇬🇧 English</p>
+    <p className="text-sm font-bold text-[var(--text-primary)]">{card.english_meaning}</p>
+  </div>
+)}
+
+{/* Second example sentence */}
+{card.example_sentence_2 && (
+  <div className="rounded-2xl p-3" style={{ background: '#10b98112', border: '1.5px solid #10b98130' }}>
+    <p className="text-xs font-black mb-1" style={{ color: '#10b981' }}>💬 Another example</p>
+    <p className="text-sm italic text-[var(--text-secondary)]">&ldquo;{card.example_sentence_2}&rdquo;</p>
+  </div>
+)}
                 {/* Arabic translation */}
                 <div className="rounded-2xl p-3" style={{ background: 'linear-gradient(135deg,#6366f115,#8b5cf615)', border: '1.5px solid #6366f133' }}>
                   <p className="text-xs font-black mb-1" style={{ color: '#6366f1' }}>🌍 الترجمة بالعربية</p>
