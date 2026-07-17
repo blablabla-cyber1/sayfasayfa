@@ -1,12 +1,13 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { X, Pencil, Trash2, Star, StarOff, Volume2, Languages, Loader2 } from 'lucide-react';
+import { X, Pencil, Trash2, Star, StarOff, Volume2, Languages, Loader2, ImageOff, RefreshCw, BookOpenText } from 'lucide-react';
 import { HighlightedWord, CATEGORY_COLORS, CATEGORY_LABELS } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Input';
 import { formatDate } from '@/lib/utils';
 import { usePronunciation } from '@/hooks/usePronunciation';
+import { useWordEnrichment } from '@/hooks/useWordEnrichment';
 
 interface WordPanelProps {
   word: HighlightedWord | null;
@@ -38,11 +39,18 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
   const [note, setNote]               = useState(word?.user_note || '');
   const [saving, setSaving]           = useState(false);
   const [speaking, setSpeaking]       = useState(false);
-  const [arabicTranslation, setArabicTranslation] = useState<string>('');
-  const [translating, setTranslating] = useState(false);
-  const { speak } = usePronunciation();
 
-  // Auto-translate when word changes
+  const [arabicTranslation, setArabicTranslation] = useState('');
+  const [translating, setTranslating] = useState(false);
+
+  // Auto-enrichment: English meaning + image + second example sentence
+  const [enriching, setEnriching] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
+
+  const { speak } = usePronunciation();
+  const { enrich } = useWordEnrichment();
+
+  // Arabic translation — always re-fetches per word (existing behavior)
   useEffect(() => {
     if (!word) return;
     setArabicTranslation('');
@@ -52,6 +60,66 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
       setTranslating(false);
     });
   }, [word?.word]);
+
+  // English meaning + image + second sentence — fetched once and cached on the row.
+  // If already saved on this word, skip the network calls entirely.
+  useEffect(() => {
+    if (!word) return;
+    setImgFailed(false);
+
+    const alreadyEnriched = word.english_meaning || word.auto_image_url || word.example_sentence_2;
+    if (alreadyEnriched) return;
+
+    let cancelled = false;
+    setEnriching(true);
+
+    enrich(word.word, word.sentence).then(async result => {
+      if (cancelled) return;
+      setEnriching(false);
+
+      const patch: Record<string, string | null> = {};
+      if (result.englishMeaning) patch.english_meaning = result.englishMeaning;
+      if (result.imageUrl) patch.auto_image_url = result.imageUrl;
+      if (result.exampleSentence) patch.example_sentence_2 = result.exampleSentence;
+
+      if (Object.keys(patch).length === 0) return;
+
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('highlighted_words')
+        .update(patch)
+        .eq('id', word.id)
+        .select()
+        .single();
+      if (data && !cancelled) onUpdate(data as HighlightedWord);
+    });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [word?.id]);
+
+  const handleRefreshEnrichment = async () => {
+    if (!word) return;
+    setEnriching(true);
+    setImgFailed(false);
+    const result = await enrich(word.word, word.sentence);
+    setEnriching(false);
+
+    const patch: Record<string, string | null> = {
+      english_meaning: result.englishMeaning ?? word.english_meaning,
+      auto_image_url: result.imageUrl ?? word.auto_image_url,
+      example_sentence_2: result.exampleSentence ?? word.example_sentence_2,
+    };
+
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('highlighted_words')
+      .update(patch)
+      .eq('id', word.id)
+      .select()
+      .single();
+    if (data) onUpdate(data as HighlightedWord);
+  };
 
   if (!word) return null;
 
@@ -100,7 +168,6 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
     onClose();
   };
 
-  // Save arabic translation as the user_translation field
   const handleSaveArabic = async () => {
     if (!arabicTranslation) return;
     const supabase = createClient();
@@ -171,6 +238,49 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
           </p>
         </div>
 
+        {/* 🖼️ Auto-fetched photo */}
+        <div style={{ marginBottom: 14 }}>
+          {enriching && !word.auto_image_url ? (
+            <div style={{ height: 140, borderRadius: 16, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <Loader2 size={16} color="#6366f1" style={{ animation: 'spin 1s linear infinite' }} />
+              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Finding a picture…</span>
+              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+            </div>
+          ) : word.auto_image_url && !imgFailed ? (
+            <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border-color)' }}>
+              <img
+                src={word.auto_image_url}
+                alt={word.english_meaning || word.word}
+                onError={() => setImgFailed(true)}
+                style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }}
+              />
+              <button
+                onClick={handleRefreshEnrichment}
+                title="Find a different picture"
+                style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: 10, padding: 6, cursor: 'pointer', display: 'flex', backdropFilter: 'blur(4px)' }}
+              >
+                <RefreshCw size={13} color="white" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleRefreshEnrichment}
+              style={{ width: '100%', height: 80, borderRadius: 16, border: '2px dashed var(--border-color)', background: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', color: 'var(--text-muted)' }}
+            >
+              <ImageOff size={18} />
+              <span style={{ fontSize: 11, fontWeight: 700 }}>No picture found — tap to retry</span>
+            </button>
+          )}
+        </div>
+
+        {/* English meaning (auto) */}
+        {(enriching && !word.english_meaning) ? null : word.english_meaning && (
+          <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: '10px 12px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span style={{ fontSize: 16 }}>🇬🇧</span>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{word.english_meaning}</span>
+          </div>
+        )}
+
         {/* 🌍 Arabic translation box */}
         <div style={{
           background: 'linear-gradient(135deg, #6366f115, #8b5cf615)',
@@ -190,7 +300,6 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <Loader2 size={16} color="#6366f1" style={{ animation: 'spin 1s linear infinite' }} />
               <span style={{ fontSize: 13, color: 'var(--text-muted)', fontWeight: 600 }}>جاري الترجمة…</span>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
             </div>
           ) : arabicTranslation ? (
             <div>
@@ -226,8 +335,8 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
           )}
         </div>
 
-        {/* Story & sentence */}
-        <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+        {/* Story & original sentence */}
+        <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 12, marginBottom: 10 }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>
             From: {storyTitle}
           </p>
@@ -237,6 +346,21 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
             </p>
           )}
         </div>
+
+        {/* Second example sentence (auto, from Tatoeba) */}
+        {word.example_sentence_2 && (
+          <div style={{ background: '#10b98110', border: '1.5px solid #10b98130', borderRadius: 12, padding: 12, marginBottom: 14 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+              <BookOpenText size={13} color="#10b981" />
+              <p style={{ fontSize: 11, fontWeight: 800, color: '#10b981', margin: 0, textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                Another example
+              </p>
+            </div>
+            <p style={{ fontSize: 13, color: 'var(--text-secondary)', fontStyle: 'italic', lineHeight: 1.6, margin: 0 }}>
+              &ldquo;{word.example_sentence_2}&rdquo;
+            </p>
+          </div>
+        )}
 
         {/* Meaning / edit */}
         {editing ? (
@@ -323,3 +447,4 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
     </div>
   );
 }
+
