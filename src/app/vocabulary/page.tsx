@@ -1,3 +1,4 @@
+export const runtime = 'edge';
 'use client';
 import { useEffect, useState } from 'react';
 import { Search, Download, Star, Pencil, Trash2, SlidersHorizontal } from 'lucide-react';
