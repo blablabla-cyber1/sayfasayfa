@@ -1,5 +1,6 @@
-export const runtime = 'edge';
 'use client';
+export const runtime = 'edge';
+
 import { useEffect, useState, useCallback } from 'react';
 import {
   ArrowRight, Brain, RotateCcw, Eye, EyeOff, Lightbulb,
