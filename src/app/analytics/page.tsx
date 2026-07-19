@@ -1,5 +1,6 @@
-export const runtime = 'edge';
 'use client';
+export const runtime = 'edge';
+
 import { useEffect, useState } from 'react';
 import {
   AreaChart, Area, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip,
