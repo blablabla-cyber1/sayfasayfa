@@ -1,11 +1,7 @@
 export const runtime = 'edge';
 
 import { redirect } from 'next/navigation';
-import { createClient } from '@/lib/supabase/server';
 
-export default async function HomePage() {
-  const supabase = await createClient();
-  const { data: { user } } = await supabase.auth.getUser();
-  if (user) redirect('/library');
-  redirect('/auth/login');
+export default function HomePage() {
+  redirect('/library');
 }
