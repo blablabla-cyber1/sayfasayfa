@@ -1,5 +1,6 @@
 'use client';
 export const runtime = 'edge';
+import { StoryQuiz } from '@/app/practice/StoryQuiz';
 
 import { useEffect, useState, useCallback } from 'react';
 import {
@@ -447,6 +448,7 @@ export default function PracticePage() {
   const [mode, setMode] = useState<PracticeMode>('multiple_choice');
   const [filterStory, setFilterStory] = useState('all');
   const [finished, setFinished] = useState(false);
+  const [activeTab, setActiveTab] = useState<'vocabulary' | 'quiz'>('vocabulary');
 
   const { play } = useSound();
   const { recordCorrect, recordIncorrect } = useGameStats();
@@ -542,6 +544,37 @@ export default function PracticePage() {
 
     return (
       <div className="p-6 max-w-md mx-auto text-center animate-fade-in">
+        {/* Tab switcher */}
+<div className="flex gap-2 mb-6 max-w-2xl mx-auto">
+  <button
+    onClick={() => setActiveTab('vocabulary')}
+    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+      activeTab === 'vocabulary'
+        ? 'bg-[var(--accent-primary)] text-white'
+        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
+    }`}
+  >
+    🧠 Vocabulary Practice
+  </button>
+  <button
+    onClick={() => setActiveTab('quiz')}
+    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+      activeTab === 'quiz'
+        ? 'bg-[var(--accent-primary)] text-white'
+        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
+    }`}
+  >
+    📖 Story Quiz
+  </button>
+</div>
+
+{activeTab === 'quiz' ? (
+  <div className="max-w-2xl mx-auto"><StoryQuiz /></div>
+) : (
+  <>
+    {/* ...all your existing vocabulary-practice JSX stays exactly as it was, unchanged... */}
+  </>
+)}
         <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${acc >= 70 ? 'bg-green-500/10' : 'bg-[var(--accent-primary)]/10'}`}>
           {acc >= 70 ? <CheckCircle2 size={40} className="text-green-500" /> : <Brain size={40} className="text-[var(--accent-primary)]" />}
         </div>
