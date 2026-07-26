@@ -1,6 +1,5 @@
 'use client';
 export const runtime = 'edge';
-import { StoryQuiz } from '@/components/practice/StoryQuiz';
 
 import { useEffect, useState, useCallback } from 'react';
 import {
@@ -13,6 +12,7 @@ import { Button } from '@/components/ui/Button';
 import { useSound } from '@/hooks/useSound';
 import { useGameStats } from '@/hooks/useGameStats';
 import { usePronunciation } from '@/hooks/usePronunciation';
+import { StoryQuiz } from '@/components/practice/StoryQuiz';
 
 /* ────────────────────────────────────────────────────────────
    Fuzzy matching — replaces plain right/wrong string equality.
@@ -75,12 +75,6 @@ function shuffle<T>(arr: T[]): T[] {
   }
   return a;
 }
-
-const CATEGORY_COLORS_LOCAL: Record<string, string> = {
-  forgot: '#f59e0b',
-  unknown: '#ef4444',
-  note: '#10b981',
-};
 
 /* ────────────────────────────────────────────────────────────
    Fill in the Blank — with optional translation reveal
@@ -231,8 +225,7 @@ function MultipleChoiceMode({
 }
 
 /* ────────────────────────────────────────────────────────────
-   Word Match — redesigned: word ↔ meaning/translation, with
-   pronunciation, progress ring, and clearer pairing feedback.
+   Word Match
 ──────────────────────────────────────────────────────────── */
 function MatchMode({
   words, onFinish,
@@ -287,7 +280,6 @@ function MatchMode({
         </span>
       </div>
 
-      {/* progress bar */}
       <div style={{ height: 6, background: 'var(--bg-secondary)', borderRadius: 4, overflow: 'hidden' }}>
         <div style={{ height: '100%', width: `${(matched.size / pool.length) * 100}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', transition: 'width 0.4s' }} />
       </div>
@@ -339,7 +331,7 @@ function MatchMode({
 }
 
 /* ────────────────────────────────────────────────────────────
-   Typing Practice — fuzzy graded, with translation hint
+   Typing Practice
 ──────────────────────────────────────────────────────────── */
 function TypingMode({
   word, onGrade,
@@ -354,7 +346,6 @@ function TypingMode({
   const check = () => {
     if (!typed.trim() || revealed) return;
     let g = gradeAnswer(typed, expected);
-    // also accept the raw Turkish word itself (some users type the word back)
     if (g === 'off') g = gradeAnswer(typed, word.word);
     setGrade(g);
     setRevealed(true);
@@ -420,7 +411,38 @@ function TypingMode({
 }
 
 /* ────────────────────────────────────────────────────────────
-   Main Practice Page
+   Tab switcher — shared header shown above every screen
+──────────────────────────────────────────────────────────── */
+function TabSwitcher({ activeTab, setActiveTab }: { activeTab: 'vocabulary' | 'quiz'; setActiveTab: (t: 'vocabulary' | 'quiz') => void }) {
+  return (
+    <div className="flex gap-2 mb-6 max-w-2xl mx-auto px-6 pt-6">
+      <button
+        onClick={() => setActiveTab('vocabulary')}
+        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+          activeTab === 'vocabulary'
+            ? 'bg-[var(--accent-primary)] text-white'
+            : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
+        }`}
+      >
+        🧠 Vocabulary Practice
+      </button>
+      <button
+        onClick={() => setActiveTab('quiz')}
+        className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+          activeTab === 'quiz'
+            ? 'bg-[var(--accent-primary)] text-white'
+            : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
+        }`}
+      >
+        📖 Story Quiz
+      </button>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────
+   Vocabulary Practice — all the original logic, now returned
+   as a component so it can sit inside the shared tab shell.
 ──────────────────────────────────────────────────────────── */
 interface PracticeSession {
   mode: PracticeMode;
@@ -440,7 +462,7 @@ const MODES: { key: PracticeMode; label: string; desc: string; icon: React.Eleme
   { key: 'typing', label: 'Typing Practice', desc: 'Type the meaning — graded with tolerance for typos', icon: Type },
 ];
 
-export default function PracticePage() {
+function VocabularyPractice() {
   const [words, setWords] = useState<HighlightedWord[]>([]);
   const [stories, setStories] = useState<Story[]>([]);
   const [loading, setLoading] = useState(true);
@@ -448,7 +470,6 @@ export default function PracticePage() {
   const [mode, setMode] = useState<PracticeMode>('multiple_choice');
   const [filterStory, setFilterStory] = useState('all');
   const [finished, setFinished] = useState(false);
-  const [activeTab, setActiveTab] = useState<'vocabulary' | 'quiz'>('vocabulary');
 
   const { play } = useSound();
   const { recordCorrect, recordIncorrect } = useGameStats();
@@ -511,7 +532,6 @@ export default function PracticePage() {
     if (isLast) setTimeout(() => setFinished(true), 500);
   }, [session, play, recordCorrect, recordIncorrect]);
 
-  // Match mode finishes differently (many at once)
   const handleMatchFinish = useCallback(async (correct: number, total: number) => {
     if (!session) return;
     play(correct === total ? 'success' : 'flip');
@@ -544,37 +564,6 @@ export default function PracticePage() {
 
     return (
       <div className="p-6 max-w-md mx-auto text-center animate-fade-in">
-        {/* Tab switcher */}
-<div className="flex gap-2 mb-6 max-w-2xl mx-auto">
-  <button
-    onClick={() => setActiveTab('vocabulary')}
-    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-      activeTab === 'vocabulary'
-        ? 'bg-[var(--accent-primary)] text-white'
-        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
-    }`}
-  >
-    🧠 Vocabulary Practice
-  </button>
-  <button
-    onClick={() => setActiveTab('quiz')}
-    className={`flex-1 py-2.5 rounded-xl text-sm font-semibold transition-all ${
-      activeTab === 'quiz'
-        ? 'bg-[var(--accent-primary)] text-white'
-        : 'bg-[var(--bg-secondary)] text-[var(--text-secondary)] hover:bg-[var(--border-color)]'
-    }`}
-  >
-    📖 Story Quiz
-  </button>
-</div>
-
-{activeTab === 'quiz' ? (
-  <div className="max-w-2xl mx-auto"><StoryQuiz /></div>
-) : (
-  <>
-    {/* ...all your existing vocabulary-practice JSX stays exactly as it was, unchanged... */}
-  </>
-)}
         <div className={`w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6 ${acc >= 70 ? 'bg-green-500/10' : 'bg-[var(--accent-primary)]/10'}`}>
           {acc >= 70 ? <CheckCircle2 size={40} className="text-green-500" /> : <Brain size={40} className="text-[var(--accent-primary)]" />}
         </div>
@@ -740,6 +729,25 @@ export default function PracticePage() {
         Answers are graded with tolerance for small typos and accent differences —
         you&apos;ll see &ldquo;Close enough&rdquo; instead of a flat wrong for near-misses.
       </p>
+    </div>
+  );
+}
+
+/* ────────────────────────────────────────────────────────────
+   Page root — always shows the tab switcher, then renders
+   either the quiz or the vocabulary practice flow underneath.
+──────────────────────────────────────────────────────────── */
+export default function PracticePage() {
+  const [activeTab, setActiveTab] = useState<'vocabulary' | 'quiz'>('vocabulary');
+
+  return (
+    <div>
+      <TabSwitcher activeTab={activeTab} setActiveTab={setActiveTab} />
+      {activeTab === 'quiz' ? (
+        <div className="max-w-2xl mx-auto px-6 pb-6"><StoryQuiz /></div>
+      ) : (
+        <VocabularyPractice />
+      )}
     </div>
   );
 }
