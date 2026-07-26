@@ -1,6 +1,6 @@
 'use client';
 export const runtime = 'edge';
-import { StoryQuiz } from '@/app/practice/StoryQuiz';
+import { StoryQuiz } from '@/components/practice/StoryQuiz';
 
 import { useEffect, useState, useCallback } from 'react';
 import {
