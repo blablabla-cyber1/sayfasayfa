@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useSound } from '@/hooks/useSound';
 import { useGameStats } from '@/hooks/useGameStats';
 
+
 /* ── Local types — kept self-contained so this drops in without
    needing edits to the shared types file ── */
 interface QuizStory {
