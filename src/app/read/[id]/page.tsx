@@ -59,7 +59,6 @@ function buildHTML(
     highlights.forEach(w => {
       const color   = CATEGORY_COLORS[w.category];
       const escaped = w.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-      // word boundary match, case-insensitive
       const regex   = new RegExp(`(${escaped})`, 'gi');
       html = html.replace(
         regex,
@@ -70,7 +69,6 @@ function buildHTML(
       );
     });
 
-    // Search highlights
     if (searchTerm.trim().length >= 2) {
       const escaped = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       html = html.replace(
@@ -89,9 +87,7 @@ export default function ReadPage() {
 
   const [story, setStory]           = useState<Story | null>(null);
   const [content, setContent]       = useState('');
-  // ALL user's highlighted words (across all stories)
   const [allWords, setAllWords]     = useState<HighlightedWord[]>([]);
-  // Words for THIS story (for the panel)
   const [storyWords, setStoryWords] = useState<HighlightedWord[]>([]);
   const [selectedWord, setSelectedWord] = useState<HighlightedWord | null>(null);
   const [selection, setSelection]   = useState<{ text: string; x: number; y: number; position: number } | null>(null);
@@ -109,14 +105,20 @@ export default function ReadPage() {
   const [bookmarks, setBookmarks]       = useState<{ id: string; position: number; label: string | null }[]>([]);
   const [showBookmarks, setShowBookmarks] = useState(false);
 
-  const contentRef    = useRef<HTMLDivElement>(null);
-  const searchInputRef = useRef<HTMLInputElement>(null);
-  const saveTimeout   = useRef<ReturnType<typeof setTimeout> | null>(undefined as unknown as ReturnType<typeof setTimeout> | null);
-  const progressRef   = useRef(0); // tracks progress without triggering re-renders
+  const contentRef     = useRef<HTMLDivElement>(null);
+  const searchInputRef  = useRef<HTMLInputElement>(null);
+  const saveTimeout    = useRef<ReturnType<typeof setTimeout> | null>(undefined as unknown as ReturnType<typeof setTimeout> | null);
+  const progressRef    = useRef(0);
+  // Holds the saved scroll fraction (0–1) until the reader body has actually
+  // mounted and painted — fixes "resume where I left off" never firing.
+  const pendingScrollRef = useRef<number | null>(null);
+  // Remembers whether this story was already marked completed on load, so a
+  // lighter re-read never silently un-marks it as completed.
+  const wasCompletedRef  = useRef(false);
 
   const { speak } = usePronunciation();
 
-  /* ── Load settings ── */
+  /* ── Load reader display settings (font size, dark mode, etc.) ── */
   useEffect(() => {
     try {
       const s = localStorage.getItem('reader-settings');
@@ -124,7 +126,7 @@ export default function ReadPage() {
     } catch {}
   }, []);
 
-  /* ── Fetch story + ALL user words ── */
+  /* ── Fetch story + ALL user words + saved progress ── */
   useEffect(() => {
     (async () => {
       const supabase = createClient();
@@ -134,7 +136,7 @@ export default function ReadPage() {
       const [
         { data: storyData },
         { data: contentData },
-        { data: allWordsData },   // ALL words from ALL stories
+        { data: allWordsData },
         { data: progressData },
         { data: bookmarkData },
       ] = await Promise.all([
@@ -154,16 +156,16 @@ export default function ReadPage() {
       setAllWords(words);
       setStoryWords(words.filter(w => w.story_id === id));
       setBookmarks((bookmarkData as { id: string; position: number; label: string | null }[]) || []);
+
       if (progressData) {
         setProgress(progressData.progress_percent ?? 0);
         progressRef.current = progressData.progress_percent ?? 0;
-      }
-
-      if (progressData?.scroll_position && contentRef.current) {
-        setTimeout(() => {
-          const el = contentRef.current;
-          if (el) el.scrollTop = progressData.scroll_position * (el.scrollHeight - el.clientHeight);
-        }, 150);
+        wasCompletedRef.current = !!progressData.is_completed;
+        // Stash it — the actual scrollTop assignment happens once the
+        // reader body is mounted (see the effect below), not here.
+        if (typeof progressData.scroll_position === 'number') {
+          pendingScrollRef.current = progressData.scroll_position;
+        }
       }
 
       await supabase.from('analytics').insert({ user_id: user.id, story_id: id, event_type: 'read_session' });
@@ -171,15 +173,36 @@ export default function ReadPage() {
     })();
   }, [id, router]);
 
-  /* ── Scroll / progress ── */
+  /* ── Restore scroll position AFTER the reader body actually exists ──
+     This only runs once loading flips to false, which is when contentRef
+     first points at a real, painted DOM node. */
+  useEffect(() => {
+    if (loading) return;
+    if (pendingScrollRef.current === null) return;
+
+    const scrollFraction = pendingScrollRef.current;
+    pendingScrollRef.current = null; // consume it once
+
+    // Wait one paint frame so the injected story HTML has real layout height
+    requestAnimationFrame(() => {
+      requestAnimationFrame(() => {
+        const el = contentRef.current;
+        if (!el) return;
+        const maxScroll = el.scrollHeight - el.clientHeight;
+        if (maxScroll > 0) {
+          el.scrollTop = scrollFraction * maxScroll;
+        }
+      });
+    });
+  }, [loading]);
+
+  /* ── Scroll / progress tracking — always live, never freezes ── */
   const handleScroll = useCallback(() => {
     const el = contentRef.current;
     if (!el) return;
 
-    // Stop all updates if already completed
-    if (progressRef.current >= 100) return;
-
-    const pct = Math.min((el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1)) * 100, 100);
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    const pct = maxScroll > 0 ? Math.min((el.scrollTop / maxScroll) * 100, 100) : 0;
     progressRef.current = pct;
     setProgress(pct);
 
@@ -188,14 +211,20 @@ export default function ReadPage() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) return;
+      // Once a story has been marked completed (either by reaching the end,
+      // or manually from the library), later re-reading never un-marks it —
+      // but the live percentage still reflects wherever you actually are.
+      const isCompleted = pct > 95 || wasCompletedRef.current;
+      if (pct > 95) wasCompletedRef.current = true;
+
       await supabase.from('reading_progress').upsert({
         user_id: user.id, story_id: id,
-        scroll_position: el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1),
+        scroll_position: maxScroll > 0 ? el.scrollTop / maxScroll : 0,
         progress_percent: pct,
-        is_completed: pct > 95,
+        is_completed: isCompleted,
         last_read_at: new Date().toISOString(),
       }, { onConflict: 'user_id,story_id' });
-    }, 2000);
+    }, 1200);
   }, [id]);
 
   /* ── Text selection ── */
@@ -228,7 +257,6 @@ export default function ReadPage() {
       const newWord = data as HighlightedWord;
       setAllWords(prev => [...prev, newWord]);
       setStoryWords(prev => [...prev, newWord]);
-      // Auto-speak the word on highlight
       speak(selection.text);
     }
     setSelection(null);
@@ -239,7 +267,8 @@ export default function ReadPage() {
   const handleAddBookmark = useCallback(async () => {
     const el = contentRef.current;
     if (!el) return;
-    const pos   = el.scrollTop / Math.max(el.scrollHeight - el.clientHeight, 1);
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    const pos = maxScroll > 0 ? el.scrollTop / maxScroll : 0;
     const label = prompt('Bookmark label (optional):') || null;
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
@@ -252,7 +281,9 @@ export default function ReadPage() {
 
   const handleGoToBookmark = (pos: number) => {
     const el = contentRef.current;
-    if (el) el.scrollTop = pos * (el.scrollHeight - el.clientHeight);
+    if (!el) return;
+    const maxScroll = el.scrollHeight - el.clientHeight;
+    el.scrollTop = pos * maxScroll;
     setShowBookmarks(false);
   };
 
@@ -301,7 +332,13 @@ export default function ReadPage() {
     };
   }, [allWords, speak]);
 
-  const renderedHTML = buildHTML(content, allWords, searchQuery);
+  // Memoized — only rebuilds when the story text, highlighted words, or
+  // search query actually change. This was recomputing on every single
+  // scroll-driven progress update before, which is what caused the lag.
+  const renderedHTML = useMemo(
+    () => buildHTML(content, allWords, searchQuery),
+    [content, allWords, searchQuery]
+  );
 
   if (loading) {
     return (
@@ -318,13 +355,11 @@ export default function ReadPage() {
 
       {/* ── Top bar ── */}
       <div style={{ position: 'sticky', top: 0, zIndex: 30, background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(12px)', borderBottom: '1px solid var(--border-color)' }}>
-        {/* Progress bar */}
         <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: 3, background: 'var(--border-color)' }}>
           <div style={{ height: '100%', width: `${progress}%`, background: 'linear-gradient(90deg,#6366f1,#8b5cf6)', transition: 'width 0.5s' }} />
         </div>
 
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 20px', maxWidth: 900, margin: '0 auto', width: '100%' }}>
-          {/* Left */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, minWidth: 0 }}>
             <Link href="/library" style={{ display: 'flex', padding: 6, borderRadius: 8, color: 'var(--text-muted)', textDecoration: 'none', flexShrink: 0 }}>
               <ArrowLeft size={18} />
@@ -335,20 +370,16 @@ export default function ReadPage() {
             </div>
           </div>
 
-          {/* Right */}
           <div style={{ display: 'flex', alignItems: 'center', gap: 4, flexShrink: 0 }}>
             <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 700, marginRight: 4 }}>{Math.round(progress)}%</span>
 
-            {/* Music player */}
             <MusicPlayer storyId={id} />
 
-            {/* Search */}
             <button onClick={() => { setShowSearch(s => !s); setTimeout(() => searchInputRef.current?.focus(), 50); }}
               style={{ padding: 6, borderRadius: 8, border: 'none', background: showSearch ? '#6366f1' : 'transparent', color: showSearch ? 'white' : 'var(--text-muted)', cursor: 'pointer' }}>
               <Search size={17} />
             </button>
 
-            {/* Bookmarks */}
             <div style={{ position: 'relative' }}>
               <button onClick={() => setShowBookmarks(b => !b)}
                 style={{ padding: 6, borderRadius: 8, border: 'none', background: showBookmarks ? '#f59e0b' : 'transparent', color: showBookmarks ? 'white' : 'var(--text-muted)', cursor: 'pointer' }}>
@@ -378,7 +409,6 @@ export default function ReadPage() {
               )}
             </div>
 
-            {/* Settings */}
             <div style={{ position: 'relative' }}>
               <button onClick={() => setShowSettings(s => !s)}
                 style={{ padding: 6, borderRadius: 8, border: 'none', background: showSettings ? '#6366f1' : 'transparent', color: showSettings ? 'white' : 'var(--text-muted)', cursor: 'pointer' }}>
@@ -387,7 +417,6 @@ export default function ReadPage() {
               {showSettings && <ReaderSettingsPanel settings={settings} onChange={setSettings} onClose={() => setShowSettings(false)} />}
             </div>
 
-            {/* Fullscreen */}
             <button onClick={() => setFullscreen(f => !f)}
               style={{ padding: 6, borderRadius: 8, border: 'none', background: 'transparent', color: 'var(--text-muted)', cursor: 'pointer' }}>
               {fullscreen ? <Minimize size={17} /> : <Maximize size={17} />}
@@ -395,7 +424,6 @@ export default function ReadPage() {
           </div>
         </div>
 
-        {/* Search bar */}
         {showSearch && (
           <div style={{ borderTop: '1px solid var(--border-color)', padding: '10px 20px', display: 'flex', alignItems: 'center', gap: 12 }}>
             <Search size={14} color="var(--text-muted)" />
@@ -424,7 +452,6 @@ export default function ReadPage() {
       <div ref={contentRef} style={{ flex: 1, overflowY: 'auto' }} onScroll={handleScroll} onMouseUp={handleMouseUp}>
         <div style={{ maxWidth: fullscreen ? 620 : 720, margin: '0 auto', padding: '40px 24px 80px' }}>
 
-          {/* Hint bar */}
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 28, padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 14, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
             <span>🖱️ Select any word to save</span>
             <div style={{ display: 'flex', gap: 10, marginLeft: 'auto' }}>
@@ -438,7 +465,6 @@ export default function ReadPage() {
             <span style={{ color: 'var(--text-muted)', opacity: 0.7 }}>🔊 Click highlighted words to hear pronunciation</span>
           </div>
 
-          {/* Content */}
           {content ? (
             <div
               style={{
@@ -455,7 +481,6 @@ export default function ReadPage() {
             </div>
           )}
 
-          {/* End of story */}
           {progress > 95 && content && (
             <div style={{ marginTop: 60, paddingTop: 32, borderTop: '2px solid var(--border-color)', textAlign: 'center' }}>
               <p style={{ fontSize: 28, marginBottom: 8, fontWeight: 900 }}>✦ Son ✦</p>
@@ -469,12 +494,10 @@ export default function ReadPage() {
         </div>
       </div>
 
-      {/* ── Selection menu ── */}
       {selection && (
         <SelectionMenu x={selection.x} y={selection.y} onSelect={handleHighlight} onClose={() => setSelection(null)} />
       )}
 
-      {/* ── Word panel ── */}
       {selectedWord && (
         <WordPanel
           word={selectedWord}
