@@ -1,6 +1,6 @@
 'use client';
 import { useState, useEffect } from 'react';
-import { X, Pencil, Trash2, Star, StarOff, Volume2, Languages, Loader2, ImageOff, RefreshCw, BookOpenText } from 'lucide-react';
+import { X, Pencil, Trash2, Star, StarOff, Volume2, Languages, Loader2, ImageOff, RefreshCw, BookOpenText, MessageSquare } from 'lucide-react';
 import { HighlightedWord, CATEGORY_COLORS, CATEGORY_LABELS } from '@/types';
 import { createClient } from '@/lib/supabase/client';
 import { Button } from '@/components/ui/Button';
@@ -50,7 +50,11 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
   const { speak } = usePronunciation();
   const { enrich } = useWordEnrichment();
 
-  // Arabic translation — always re-fetches per word (existing behavior)
+  // A "note" is a grammar/personal annotation, not a vocabulary word —
+  // it gets a simpler panel: just Arabic translation + the note itself.
+  const isNote = word?.category === 'note';
+
+  // Arabic translation — always re-fetches per word (applies to every category)
   useEffect(() => {
     if (!word) return;
     setArabicTranslation('');
@@ -61,10 +65,11 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
     });
   }, [word?.word]);
 
-  // English meaning + image + second sentence — fetched once and cached on the row.
-  // If already saved on this word, skip the network calls entirely.
+  // English meaning + image + second sentence — skipped entirely for notes,
+  // fetched once and cached on the row for vocabulary words (forgot/unknown).
   useEffect(() => {
     if (!word) return;
+    if (isNote) return; // notes don't need photo/enrichment at all
     setImgFailed(false);
 
     const alreadyEnriched = word.english_meaning || word.auto_image_url || word.example_sentence_2;
@@ -96,7 +101,7 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
 
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [word?.id]);
+  }, [word?.id, isNote]);
 
   const handleRefreshEnrichment = async () => {
     if (!word) return;
@@ -193,7 +198,8 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
     }}>
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '14px 16px', borderBottom: '1px solid var(--border-color)', flexShrink: 0 }}>
-        <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color }}>
+        <span style={{ fontSize: 11, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.1em', color, display: 'flex', alignItems: 'center', gap: 5 }}>
+          {isNote && <MessageSquare size={12} />}
           {CATEGORY_LABELS[word.category]}
         </span>
         <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -238,50 +244,53 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
           </p>
         </div>
 
-        {/* 🖼️ Auto-fetched photo */}
-        <div style={{ marginBottom: 14 }}>
-          {enriching && !word.auto_image_url ? (
-            <div style={{ height: 140, borderRadius: 16, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-              <Loader2 size={16} color="#6366f1" style={{ animation: 'spin 1s linear infinite' }} />
-              <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Finding a picture…</span>
-              <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+        {/* ── Vocabulary-only extras: photo + English meaning ── */}
+        {!isNote && (
+          <>
+            <div style={{ marginBottom: 14 }}>
+              {enriching && !word.auto_image_url ? (
+                <div style={{ height: 140, borderRadius: 16, background: 'var(--bg-secondary)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                  <Loader2 size={16} color="#6366f1" style={{ animation: 'spin 1s linear infinite' }} />
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>Finding a picture…</span>
+                  <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+                </div>
+              ) : word.auto_image_url && !imgFailed ? (
+                <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border-color)' }}>
+                  <img
+                    src={word.auto_image_url}
+                    alt={word.english_meaning || word.word}
+                    onError={() => setImgFailed(true)}
+                    style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }}
+                  />
+                  <button
+                    onClick={handleRefreshEnrichment}
+                    title="Find a different picture"
+                    style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: 10, padding: 6, cursor: 'pointer', display: 'flex', backdropFilter: 'blur(4px)' }}
+                  >
+                    <RefreshCw size={13} color="white" />
+                  </button>
+                </div>
+              ) : (
+                <button
+                  onClick={handleRefreshEnrichment}
+                  style={{ width: '100%', height: 80, borderRadius: 16, border: '2px dashed var(--border-color)', background: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', color: 'var(--text-muted)' }}
+                >
+                  <ImageOff size={18} />
+                  <span style={{ fontSize: 11, fontWeight: 700 }}>No picture found — tap to retry</span>
+                </button>
+              )}
             </div>
-          ) : word.auto_image_url && !imgFailed ? (
-            <div style={{ position: 'relative', borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border-color)' }}>
-              <img
-                src={word.auto_image_url}
-                alt={word.english_meaning || word.word}
-                onError={() => setImgFailed(true)}
-                style={{ width: '100%', height: 140, objectFit: 'cover', display: 'block' }}
-              />
-              <button
-                onClick={handleRefreshEnrichment}
-                title="Find a different picture"
-                style={{ position: 'absolute', top: 8, right: 8, background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: 10, padding: 6, cursor: 'pointer', display: 'flex', backdropFilter: 'blur(4px)' }}
-              >
-                <RefreshCw size={13} color="white" />
-              </button>
-            </div>
-          ) : (
-            <button
-              onClick={handleRefreshEnrichment}
-              style={{ width: '100%', height: 80, borderRadius: 16, border: '2px dashed var(--border-color)', background: 'none', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 4, cursor: 'pointer', color: 'var(--text-muted)' }}
-            >
-              <ImageOff size={18} />
-              <span style={{ fontSize: 11, fontWeight: 700 }}>No picture found — tap to retry</span>
-            </button>
-          )}
-        </div>
 
-        {/* English meaning (auto) */}
-        {(enriching && !word.english_meaning) ? null : word.english_meaning && (
-          <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: '10px 12px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: 16 }}>🇬🇧</span>
-            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{word.english_meaning}</span>
-          </div>
+            {(enriching && !word.english_meaning) ? null : word.english_meaning && (
+              <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: '10px 12px', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+                <span style={{ fontSize: 16 }}>🇬🇧</span>
+                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-primary)' }}>{word.english_meaning}</span>
+              </div>
+            )}
+          </>
         )}
 
-        {/* 🌍 Arabic translation box */}
+        {/* 🌍 Arabic translation box — shown for every category, including notes */}
         <div style={{
           background: 'linear-gradient(135deg, #6366f115, #8b5cf615)',
           border: '2px solid #6366f133',
@@ -304,7 +313,7 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
           ) : arabicTranslation ? (
             <div>
               <p style={{
-                fontSize: 22,
+                fontSize: isNote ? 26 : 22,
                 fontWeight: 800,
                 color: 'var(--text-primary)',
                 direction: 'rtl',
@@ -335,7 +344,7 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
           )}
         </div>
 
-        {/* Story & original sentence */}
+        {/* Story & original sentence — kept for both, gives context for the note */}
         <div style={{ background: 'var(--bg-secondary)', borderRadius: 12, padding: 12, marginBottom: 10 }}>
           <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 4 }}>
             From: {storyTitle}
@@ -347,8 +356,8 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
           )}
         </div>
 
-        {/* Second example sentence (auto, from Tatoeba) */}
-        {word.example_sentence_2 && (
+        {/* Second example sentence — vocabulary only */}
+        {!isNote && word.example_sentence_2 && (
           <div style={{ background: '#10b98110', border: '1.5px solid #10b98130', borderRadius: 12, padding: 12, marginBottom: 14 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
               <BookOpenText size={13} color="#10b981" />
@@ -365,26 +374,30 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
         {/* Meaning / edit */}
         {editing ? (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <Textarea
-              label="Meaning"
-              value={meaning}
-              onChange={e => setMeaning(e.target.value)}
-              placeholder="Turkish meaning…"
-              rows={2}
-            />
-            <Textarea
-              label="Translation"
-              value={translation}
-              onChange={e => setTranslation(e.target.value)}
-              placeholder="ترجمتك الخاصة…"
-              rows={2}
-            />
+            {!isNote && (
+              <>
+                <Textarea
+                  label="Meaning"
+                  value={meaning}
+                  onChange={e => setMeaning(e.target.value)}
+                  placeholder="Turkish meaning…"
+                  rows={2}
+                />
+                <Textarea
+                  label="Translation"
+                  value={translation}
+                  onChange={e => setTranslation(e.target.value)}
+                  placeholder="ترجمتك الخاصة…"
+                  rows={2}
+                />
+              </>
+            )}
             <Textarea
               label="Personal Note"
               value={note}
               onChange={e => setNote(e.target.value)}
-              placeholder="ملاحظاتك…"
-              rows={3}
+              placeholder={isNote ? 'Grammar explanation, usage tip…' : 'ملاحظاتك…'}
+              rows={isNote ? 5 : 3}
             />
             <div style={{ display: 'flex', gap: 8 }}>
               <Button size="sm" onClick={handleSave} disabled={saving} className="flex-1">
@@ -397,13 +410,13 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {word.user_meaning && (
+            {!isNote && word.user_meaning && (
               <div>
                 <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 3 }}>📖 Meaning</p>
                 <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)' }}>{word.user_meaning}</p>
               </div>
             )}
-            {word.user_translation && (
+            {!isNote && word.user_translation && (
               <div>
                 <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 3 }}>🌍 Translation</p>
                 <p style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-primary)', direction: 'rtl', textAlign: 'right' }}>
@@ -413,13 +426,17 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
             )}
             {word.user_note && (
               <div>
-                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 3 }}>📝 Note</p>
-                <p style={{ fontSize: 13, fontStyle: 'italic', color: 'var(--text-secondary)' }}>{word.user_note}</p>
+                <p style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', marginBottom: isNote ? 5 : 3 }}>
+                  {isNote ? '💬 Grammar Note' : '📝 Note'}
+                </p>
+                <p style={{ fontSize: isNote ? 17 : 13, fontWeight: isNote ? 600 : 400, fontStyle: isNote ? 'normal' : 'italic', lineHeight: 1.6, color: isNote ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                  {word.user_note}
+                </p>
               </div>
             )}
             {!word.user_meaning && !word.user_translation && !word.user_note && (
               <p style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
-                No notes yet. Click Edit to add meaning.
+                {isNote ? 'No note yet. Click Edit to write your grammar note.' : 'No notes yet. Click Edit to add meaning.'}
               </p>
             )}
             <Button
@@ -447,4 +464,3 @@ export function WordPanel({ word, storyTitle, onClose, onUpdate, onDelete }: Wor
     </div>
   );
 }
-
