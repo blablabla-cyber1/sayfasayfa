@@ -60,13 +60,27 @@ function buildHTML(
       const color   = CATEGORY_COLORS[w.category];
       const escaped = w.word.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
       const regex   = new RegExp(`(${escaped})`, 'gi');
-      html = html.replace(
-        regex,
-        `<mark class="highlight-${w.category}" data-word-id="${w.id}" data-word="${w.word}" ` +
-        `style="background-color:${color}22;border-bottom:2px solid ${color};border-radius:3px;padding:0 2px;cursor:pointer;" ` +
-        `onclick="window.__selectWord('${w.id}','${w.word.replace(/'/g, "\\'")}')"` +
-        `>$1</mark>`
-      );
+      const onclick = `window.__selectWord('${w.id}','${w.word.replace(/'/g, "\\'")}')`;
+
+      if (w.category === 'note') {
+        // Notes show as a subtle dotted underline + a small comment icon,
+        // so grammar notes read as annotations rather than vocab highlights
+        html = html.replace(
+          regex,
+          `<span data-word-id="${w.id}" data-word="${w.word}" ` +
+          `style="border-bottom:2px dotted ${color};cursor:pointer;padding:0 1px;" ` +
+          `onclick="${onclick}"` +
+          `>$1<sup style="font-size:10px;margin-left:2px;color:${color};">💬</sup></span>`
+        );
+      } else {
+        html = html.replace(
+          regex,
+          `<mark class="highlight-${w.category}" data-word-id="${w.id}" data-word="${w.word}" ` +
+          `style="background-color:${color}22;border-bottom:2px solid ${color};border-radius:3px;padding:0 2px;cursor:pointer;" ` +
+          `onclick="${onclick}"` +
+          `>$1</mark>`
+        );
+      }
     });
 
     if (searchTerm.trim().length >= 2) {
