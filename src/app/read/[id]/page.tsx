@@ -19,6 +19,7 @@ import { ReaderSettingsPanel } from '@/components/reader/ReaderSettingsPanel';
 import { useKeyboardShortcuts } from '@/hooks/useKeyboardShortcuts';
 import { usePronunciation } from '@/hooks/usePronunciation';
 import { MusicPlayer } from '@/components/reader/MusicPlayer';
+import { StoryNarrator } from '@/components/reader/StoryNarrator';
 
 const DEFAULT_SETTINGS: ReaderSettings = {
   fontSize: 18,
