@@ -242,16 +242,41 @@ export default function ReadPage() {
     }, 1200);
   }, [id]);
 
-  /* ── Text selection ── */
-  const handleMouseUp = useCallback(() => {
-    const sel = window.getSelection();
-    if (!sel || sel.isCollapsed) { setSelection(null); return; }
-    const text = sel.toString().trim();
-    if (!text || text.length < 1 || text.length > 120) { setSelection(null); return; }
-    const range = sel.getRangeAt(0);
-    const rect  = range.getBoundingClientRect();
-    const pos   = content.toLowerCase().indexOf(text.toLowerCase());
-    setSelection({ text, x: rect.left + rect.width / 2 - 75, y: rect.top, position: pos });
+ /* ── Text selection — works on both mouse (desktop) and touch (mobile) ── */
+  useEffect(() => {
+    let timeoutId: ReturnType<typeof setTimeout>;
+
+    const handleSelectionChange = () => {
+      const sel = window.getSelection();
+      if (!sel || sel.isCollapsed) { setSelection(null); return; }
+
+      const text = sel.toString().trim();
+      if (!text || text.length < 1 || text.length > 120) { setSelection(null); return; }
+
+      // Only react to selections made inside the story text itself
+      const anchorNode = sel.anchorNode;
+      if (!anchorNode || !contentRef.current?.contains(anchorNode)) return;
+
+      const range = sel.getRangeAt(0);
+      const rect  = range.getBoundingClientRect();
+      if (rect.width === 0 && rect.height === 0) return; // not finalized yet
+
+      const pos = content.toLowerCase().indexOf(text.toLowerCase());
+      setSelection({ text, x: rect.left + rect.width / 2 - 75, y: rect.top, position: pos });
+    };
+
+    // Debounced — mobile fires many selectionchange events while dragging
+    // the selection handles, we only want the settled result
+    const debounced = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(handleSelectionChange, 300);
+    };
+
+    document.addEventListener('selectionchange', debounced);
+    return () => {
+      document.removeEventListener('selectionchange', debounced);
+      clearTimeout(timeoutId);
+    };
   }, [content]);
 
   /* ── Save highlight ── */
@@ -465,8 +490,8 @@ export default function ReadPage() {
       </div>
 
       {/* ── Reader body ── */}
-      <div ref={contentRef} style={{ flex: 1, overflowY: 'auto' }} onScroll={handleScroll} onMouseUp={handleMouseUp}>
-        <div style={{ maxWidth: fullscreen ? 620 : 720, margin: '0 auto', padding: '40px 24px 80px' }}>
+<div ref={contentRef} style={{ flex: 1, overflowY: 'auto' }} onScroll={handleScroll}>
+  <div style={{ maxWidth: fullscreen ? 620 : 720, margin: '0 auto', padding: '40px 24px 80px' }}>
 
           <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 28, padding: '10px 14px', background: 'var(--bg-secondary)', borderRadius: 14, fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
             <span>🖱️ Select any word to save</span>
